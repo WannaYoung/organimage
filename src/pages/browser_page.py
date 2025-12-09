@@ -7,7 +7,7 @@ import os
 from typing import Callable, Optional, List, Set
 
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QKeyEvent
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QSlider, QGridLayout, QSizePolicy,
@@ -29,15 +29,20 @@ from ..constants import (
 from ..styles import (
     BACK_BUTTON_STYLE, REFRESH_BUTTON_STYLE, ADD_FOLDER_BUTTON_STYLE,
     FOLDERS_FRAME_STYLE, FILES_FRAME_STYLE, SIZE_SLIDER_STYLE,
-    SCROLL_AREA_STYLE, SPLITTER_STYLE, HEADER_LABEL_STYLE, PATH_LABEL_STYLE
+    SCROLL_AREA_STYLE, SPLITTER_STYLE, HEADER_LABEL_STYLE, PATH_LABEL_STYLE,
+    CONTEXT_MENU_STYLE,
+    DARK_BACK_BUTTON_STYLE, DARK_FOLDERS_FRAME_STYLE, DARK_FILES_FRAME_STYLE,
+    DARK_SIZE_SLIDER_STYLE, DARK_SCROLL_AREA_STYLE, DARK_SPLITTER_STYLE,
+    DARK_HEADER_LABEL_STYLE, DARK_PATH_LABEL_STYLE, DARK_CONTEXT_MENU_STYLE
 )
+from ..theme_manager import get_theme_manager
 from ..utils import (
     get_image_files, get_subdirectories, 
     move_file_to_folder, rename_folder_with_contents, create_folder,
     delete_file, delete_folder, rename_file, open_in_finder,
-    reorder_files_by_list
+    reorder_files_by_list, add_recent_folder
 )
-from ..widgets import ThumbnailWidget, FolderButton
+from ..widgets import ThumbnailWidget, FolderButton, ImagePreviewDialog
 
 
 class FileBrowserPage(QWidget):
@@ -53,6 +58,8 @@ class FileBrowserPage(QWidget):
         self.thumbnail_widgets = []
         self.selected_files: Set[str] = set()  # Track selected file paths
         self._last_clicked_index: Optional[int] = None  # For shift-select range
+        self._is_dark = False
+        self._current_files = []
         
         # Debounce timers
         self._resize_timer: Optional[QTimer] = None
@@ -286,6 +293,8 @@ class FileBrowserPage(QWidget):
         """Set the root path and load contents."""
         self.root_path = path
         self.current_path = path
+        # Save to recent folders
+        add_recent_folder(path)
         self.refresh_view()
     
     def _switch_root_folder(self):
@@ -349,6 +358,7 @@ class FileBrowserPage(QWidget):
         root_btn.folder_clicked.connect(self.navigate_to)
         root_btn.folder_selected.connect(self._on_folder_selected)
         root_btn.open_source_requested.connect(self._open_source)
+        root_btn.apply_theme(self._is_dark)
         all_folders.append(root_btn)
         self.folder_buttons.append(root_btn)
         
@@ -361,6 +371,7 @@ class FileBrowserPage(QWidget):
             folder_btn.delete_requested.connect(self._delete_folder)
             folder_btn.open_source_requested.connect(self._open_source)
             folder_btn.files_dropped.connect(self._handle_file_drop)
+            folder_btn.apply_theme(self._is_dark)
             all_folders.append(folder_btn)
             self.folder_buttons.append(folder_btn)
         
@@ -411,6 +422,9 @@ class FileBrowserPage(QWidget):
         if cols < 1:
             cols = 4  # Default
         
+        # Store current file list for preview navigation
+        self._current_files = files
+        
         # Create thumbnails
         for i, file_path in enumerate(files):
             thumb = ThumbnailWidget(file_path, self.thumb_size, self.current_path)
@@ -423,6 +437,9 @@ class FileBrowserPage(QWidget):
             thumb.delete_requested.connect(self._delete_file)
             thumb.rename_requested.connect(self._rename_file)
             thumb.reorder_requested.connect(self._on_reorder_requested)
+            thumb.double_clicked.connect(self._on_thumb_double_clicked)
+            # Apply current theme
+            thumb.apply_theme(self._is_dark)
             row = i // cols
             col = i % cols
             self.files_grid.addWidget(thumb, row, col)
@@ -573,6 +590,53 @@ class FileBrowserPage(QWidget):
         success, result = open_in_finder(path)
         if not success:
             QMessageBox.warning(self, "错误", f"无法打开: {result}")
+    
+    def _on_thumb_double_clicked(self, file_path: str):
+        """Handle double click on thumbnail - open image preview."""
+        if hasattr(self, '_current_files') and self._current_files:
+            dialog = ImagePreviewDialog(file_path, self._current_files, self)
+            dialog.exec()
+    
+    def _delete_selected_files(self):
+        """Delete all selected files after confirmation."""
+        if not self.selected_files:
+            return
+        
+        count = len(self.selected_files)
+        reply = QMessageBox.question(
+            self, "确认删除",
+            f"确定要删除选中的 {count} 张图片吗？\n\n文件将移至回收站。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            success_count = 0
+            failed_files = []
+            
+            for file_path in list(self.selected_files):
+                success, result = delete_file(file_path)
+                if success:
+                    success_count += 1
+                else:
+                    failed_files.append(os.path.basename(file_path))
+            
+            # Clear selection
+            self.selected_files.clear()
+            self._last_clicked_index = None
+            
+            # Reload files
+            self._load_files()
+            
+            # Update folder counts
+            for btn in self.folder_buttons:
+                btn.update_count()
+            
+            if failed_files:
+                QMessageBox.warning(
+                    self, "部分失败",
+                    f"成功删除 {success_count} 个文件\n失败: {', '.join(failed_files[:5])}{'...' if len(failed_files) > 5 else ''}"
+                )
     
     def _on_reorder_requested(self, dragged_path: str, target_path: str):
         """Handle file reorder request - move dragged file before target."""
@@ -754,3 +818,72 @@ class FileBrowserPage(QWidget):
             self._resize_timer.timeout.connect(self._relayout_all)
         
         self._resize_timer.start(RESIZE_DEBOUNCE_MS)
+    
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle keyboard shortcuts."""
+        key = event.key()
+        modifiers = event.modifiers()
+        
+        # Delete key - delete selected files
+        if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
+            if self.selected_files:
+                self._delete_selected_files()
+                return
+        
+        # Cmd/Ctrl + A - select all
+        if key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
+            self._select_all()
+            return
+        
+        # Escape - clear selection
+        if key == Qt.Key.Key_Escape:
+            self._clear_selection()
+            return
+        
+        super().keyPressEvent(event)
+    
+    def _select_all(self):
+        """Select all files in current view."""
+        for thumb in self.thumbnail_widgets:
+            thumb.selected = True
+            self.selected_files.add(thumb.file_path)
+        self._update_title()
+    
+    def apply_theme(self, is_dark: bool):
+        """Apply theme to this page."""
+        self._is_dark = is_dark
+        
+        if is_dark:
+            # Apply dark styles
+            self.back_btn.setStyleSheet(DARK_BACK_BUTTON_STYLE)
+            self.open_folder_btn.setStyleSheet(DARK_BACK_BUTTON_STYLE)
+            self.path_label.setStyleSheet(DARK_PATH_LABEL_STYLE)
+            self.folders_frame.setStyleSheet(DARK_FOLDERS_FRAME_STYLE)
+            self.files_frame.setStyleSheet(DARK_FILES_FRAME_STYLE)
+            self.folders_scroll.setStyleSheet(DARK_SCROLL_AREA_STYLE)
+            self.files_scroll.setStyleSheet(DARK_SCROLL_AREA_STYLE)
+            self.splitter.setStyleSheet(DARK_SPLITTER_STYLE)
+            self.size_slider.setStyleSheet(DARK_SIZE_SLIDER_STYLE)
+            self.folders_title_label.setStyleSheet(DARK_HEADER_LABEL_STYLE)
+            self.files_title.setStyleSheet(DARK_HEADER_LABEL_STYLE)
+        else:
+            # Apply light styles
+            self.back_btn.setStyleSheet(BACK_BUTTON_STYLE)
+            self.open_folder_btn.setStyleSheet(BACK_BUTTON_STYLE)
+            self.path_label.setStyleSheet(PATH_LABEL_STYLE)
+            self.folders_frame.setStyleSheet(FOLDERS_FRAME_STYLE)
+            self.files_frame.setStyleSheet(FILES_FRAME_STYLE)
+            self.folders_scroll.setStyleSheet(SCROLL_AREA_STYLE)
+            self.files_scroll.setStyleSheet(SCROLL_AREA_STYLE)
+            self.splitter.setStyleSheet(SPLITTER_STYLE)
+            self.size_slider.setStyleSheet(SIZE_SLIDER_STYLE)
+            self.folders_title_label.setStyleSheet(HEADER_LABEL_STYLE)
+            self.files_title.setStyleSheet(HEADER_LABEL_STYLE)
+        
+        # Update folder buttons
+        for btn in self.folder_buttons:
+            btn.apply_theme(is_dark)
+        
+        # Update thumbnails
+        for thumb in self.thumbnail_widgets:
+            thumb.apply_theme(is_dark)

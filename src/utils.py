@@ -2,13 +2,16 @@
 Utility functions for file operations.
 """
 
+import json
 import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
-from typing import List, Tuple, Optional
+from datetime import datetime
+from pathlib import Path
+from typing import List, Tuple, Optional, Dict, Any
 
 try:
     from send2trash import send2trash
@@ -358,3 +361,131 @@ def open_in_finder(path: str) -> Tuple[bool, str]:
         return True, "已打开"
     except Exception as e:
         return False, str(e)
+
+
+def get_image_info(file_path: str) -> Dict[str, Any]:
+    """
+    Get image file information including dimensions, size, and date.
+    Returns dict with keys: width, height, size, size_str, modified_date, modified_str
+    """
+    info = {
+        'width': 0,
+        'height': 0,
+        'size': 0,
+        'size_str': '',
+        'modified_date': None,
+        'modified_str': '',
+    }
+    
+    if not os.path.exists(file_path):
+        return info
+    
+    try:
+        # File size
+        info['size'] = os.path.getsize(file_path)
+        info['size_str'] = format_file_size(info['size'])
+        
+        # Modified date
+        mtime = os.path.getmtime(file_path)
+        info['modified_date'] = datetime.fromtimestamp(mtime)
+        info['modified_str'] = info['modified_date'].strftime('%Y-%m-%d %H:%M')
+        
+        # Image dimensions - use Qt to read
+        from PyQt6.QtGui import QImageReader
+        reader = QImageReader(file_path)
+        if reader.canRead():
+            size = reader.size()
+            info['width'] = size.width()
+            info['height'] = size.height()
+    except Exception as e:
+        logger.error(f"Failed to get image info: {e}")
+    
+    return info
+
+
+def format_file_size(size: int) -> str:
+    """Format file size to human readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024:
+            if unit == 'B':
+                return f"{size} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
+# =============================================================================
+# Recent Folders Management
+# =============================================================================
+
+def get_config_path() -> Path:
+    """Get the path to the config file."""
+    if sys.platform == "darwin":
+        config_dir = Path.home() / "Library" / "Application Support" / "ImageOrganizer"
+    elif sys.platform == "win32":
+        config_dir = Path(os.environ.get('APPDATA', '')) / "ImageOrganizer"
+    else:
+        config_dir = Path.home() / ".config" / "imageorganizer"
+    
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir / "config.json"
+
+
+def load_config() -> Dict[str, Any]:
+    """Load configuration from file."""
+    config_path = get_config_path()
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load config: {e}")
+    return {}
+
+
+def save_config(config: Dict[str, Any]):
+    """Save configuration to file."""
+    config_path = get_config_path()
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save config: {e}")
+
+
+def get_recent_folders(max_count: int = 10) -> List[str]:
+    """Get list of recently opened folders."""
+    config = load_config()
+    folders = config.get('recent_folders', [])
+    # Filter out non-existent folders
+    return [f for f in folders if os.path.isdir(f)][:max_count]
+
+
+def add_recent_folder(folder_path: str, max_count: int = 10):
+    """Add a folder to recent folders list."""
+    config = load_config()
+    folders = config.get('recent_folders', [])
+    
+    # Remove if already exists
+    if folder_path in folders:
+        folders.remove(folder_path)
+    
+    # Add to front
+    folders.insert(0, folder_path)
+    
+    # Limit count
+    config['recent_folders'] = folders[:max_count]
+    save_config(config)
+
+
+def get_dark_mode_preference() -> Optional[bool]:
+    """Get dark mode preference. None means follow system."""
+    config = load_config()
+    return config.get('dark_mode', None)
+
+
+def set_dark_mode_preference(dark_mode: Optional[bool]):
+    """Set dark mode preference. None means follow system."""
+    config = load_config()
+    config['dark_mode'] = dark_mode
+    save_config(config)

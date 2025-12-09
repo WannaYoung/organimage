@@ -17,7 +17,7 @@ except ImportError:
     HAS_QTAWESOME = False
 
 from ..constants import FOLDER_BUTTON_SIZE
-from ..styles import CONTEXT_MENU_STYLE, HOVER_LABEL_STYLE
+from ..styles import CONTEXT_MENU_STYLE, HOVER_LABEL_STYLE, DARK_CONTEXT_MENU_STYLE, DARK_HOVER_LABEL_STYLE
 from ..utils import count_files_in_directory, get_image_files
 
 
@@ -40,6 +40,7 @@ class FolderButton(QFrame):
         self._thumbnail: Optional[QPixmap] = None
         self._selected = False  # Track selection state
         self._hover_label: Optional[QLabel] = None  # Custom tooltip
+        self._is_dark = False  # Dark mode state
         self._setup_ui()
         self._load_thumbnail()
     
@@ -113,6 +114,11 @@ class FolderButton(QFrame):
         super().leaveEvent(event)
         self._hide_hover_label()
     
+    def hideEvent(self, event):
+        """Ensure hover label is hidden when widget is hidden."""
+        super().hideEvent(event)
+        self._hide_hover_label()
+    
     def _show_hover_label(self):
         """Show custom hover label."""
         if self._hover_label is None:
@@ -121,7 +127,7 @@ class FolderButton(QFrame):
                 Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
             )
             self._hover_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-            self._hover_label.setStyleSheet(HOVER_LABEL_STYLE)
+            self._hover_label.setStyleSheet(HOVER_LABEL_STYLE if not self._is_dark else DARK_HOVER_LABEL_STYLE)
         
         self._hover_label.setText(self._tooltip_text)
         self._hover_label.adjustSize()
@@ -133,8 +139,10 @@ class FolderButton(QFrame):
     
     def _hide_hover_label(self):
         """Hide custom hover label."""
-        if self._hover_label:
+        if self._hover_label is not None:
             self._hover_label.hide()
+            self._hover_label.deleteLater()
+            self._hover_label = None
     
     @property
     def selected(self) -> bool:
@@ -223,48 +231,84 @@ class FolderButton(QFrame):
             """)
         elif self._thumbnail and not self._thumbnail.isNull():
             # Has thumbnail - use image as background
-            self.setStyleSheet("""
-                FolderButton {
-                    border: 2px solid #E2E8F0;
+            border_color = "#3d3d5c" if self._is_dark else "#E2E8F0"
+            self.setStyleSheet(f"""
+                FolderButton {{
+                    border: 2px solid {border_color};
                     border-radius: 14px;
-                }
-                FolderButton:hover {
+                }}
+                FolderButton:hover {{
                     border: 3px solid #10B981;
-                }
+                }}
             """)
-            self.name_label.setStyleSheet("""
-                background: rgba(255, 255, 255, 0.95);
-                color: #1E293B;
-                font-size: 10px;
-                font-weight: 600;
-                padding: 2px 4px;
-                border: none;
-                border-bottom-left-radius: 14px;
-                border-bottom-right-radius: 14px;
-            """)
+            if self._is_dark:
+                self.name_label.setStyleSheet("""
+                    background: rgba(45, 45, 68, 0.95);
+                    color: #e0e0e0;
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 2px 4px;
+                    border: none;
+                    border-bottom-left-radius: 14px;
+                    border-bottom-right-radius: 14px;
+                """)
+            else:
+                self.name_label.setStyleSheet("""
+                    background: rgba(255, 255, 255, 0.95);
+                    color: #1E293B;
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 2px 4px;
+                    border: none;
+                    border-bottom-left-radius: 14px;
+                    border-bottom-right-radius: 14px;
+                """)
         else:
             # No thumbnail - show folder icon style
-            self.setStyleSheet("""
-                FolderButton {
-                    background-color: #F8FAFC;
-                    border: 2px solid #E2E8F0;
-                    border-radius: 14px;
-                }
-                FolderButton:hover {
-                    border: 3px solid #10B981;
-                    background-color: #F0FDF4;
-                }
-            """)
-            self.name_label.setStyleSheet("""
-                background: rgba(255, 255, 255, 0.95);
-                color: #1E293B;
-                font-size: 10px;
-                font-weight: 600;
-                padding: 2px 4px;
-                border: none;
-                border-bottom-left-radius: 14px;
-                border-bottom-right-radius: 14px;
-            """)
+            if self._is_dark:
+                self.setStyleSheet("""
+                    FolderButton {
+                        background-color: #2d2d44;
+                        border: 2px solid #3d3d5c;
+                        border-radius: 14px;
+                    }
+                    FolderButton:hover {
+                        border: 3px solid #10B981;
+                        background-color: #3d3d5c;
+                    }
+                """)
+                self.name_label.setStyleSheet("""
+                    background: rgba(45, 45, 68, 0.95);
+                    color: #e0e0e0;
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 2px 4px;
+                    border: none;
+                    border-bottom-left-radius: 14px;
+                    border-bottom-right-radius: 14px;
+                """)
+            else:
+                self.setStyleSheet("""
+                    FolderButton {
+                        background-color: #F8FAFC;
+                        border: 2px solid #E2E8F0;
+                        border-radius: 14px;
+                    }
+                    FolderButton:hover {
+                        border: 3px solid #10B981;
+                        background-color: #F0FDF4;
+                    }
+                """)
+                self.name_label.setStyleSheet("""
+                    background: rgba(255, 255, 255, 0.95);
+                    color: #1E293B;
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 2px 4px;
+                    border: none;
+                    border-bottom-left-radius: 14px;
+                    border-bottom-right-radius: 14px;
+                """)
     
     def paintEvent(self, event):
         """Custom paint to draw thumbnail background."""
@@ -337,7 +381,7 @@ class FolderButton(QFrame):
     def contextMenuEvent(self, event):
         """Right-click to show context menu."""
         menu = QMenu(self)
-        menu.setStyleSheet(CONTEXT_MENU_STYLE)
+        menu.setStyleSheet(DARK_CONTEXT_MENU_STYLE if self._is_dark else CONTEXT_MENU_STYLE)
         
         # Open in Finder action - available for all folders
         if HAS_QTAWESOME:
@@ -392,3 +436,12 @@ class FolderButton(QFrame):
                 self.files_dropped.emit(file_paths, self.folder_path)
         
         self._apply_style(False)
+    
+    def apply_theme(self, is_dark: bool):
+        """Apply theme to this widget."""
+        self._is_dark = is_dark
+        self._apply_style(False)
+        
+        # Update hover label style if exists
+        if self._hover_label:
+            self._hover_label.setStyleSheet(DARK_HOVER_LABEL_STYLE if is_dark else HOVER_LABEL_STYLE)

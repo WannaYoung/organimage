@@ -16,7 +16,8 @@ except ImportError:
     HAS_QTAWESOME = False
 
 from ..styles import (
-    THUMBNAIL_STYLE, THUMBNAIL_SELECTED_STYLE, CONTEXT_MENU_STYLE, HOVER_LABEL_STYLE
+    THUMBNAIL_STYLE, THUMBNAIL_SELECTED_STYLE, CONTEXT_MENU_STYLE, HOVER_LABEL_STYLE,
+    DARK_THUMBNAIL_STYLE, DARK_THUMBNAIL_SELECTED_STYLE, DARK_CONTEXT_MENU_STYLE, DARK_HOVER_LABEL_STYLE
 )
 from ..thumbnail_cache import (
     get_cached_thumbnail, put_cached_thumbnail, make_cache_key,
@@ -35,6 +36,7 @@ class ThumbnailWidget(QFrame):
     open_source_requested = pyqtSignal(str)
     delete_requested = pyqtSignal(str)
     rename_requested = pyqtSignal(str)
+    double_clicked = pyqtSignal(str)  # For image preview
     
     def __init__(self, file_path: str, thumb_size: int = 120, current_dir: str = None):
         super().__init__()
@@ -49,6 +51,9 @@ class ThumbnailWidget(QFrame):
         self._hover_label: Optional[QLabel] = None  # Custom tooltip
         self._tooltip_text = ""
         self._is_drag_over = False  # Track drag over state
+        self._image_info = None  # Cached image info
+        self._info_loaded = False  # Whether info has been loaded
+        self._is_dark = False  # Dark mode state
         self.setAcceptDrops(True)  # Accept drops for reordering
         self._setup_ui()
         self._load_thumbnail_async()
@@ -103,17 +108,36 @@ class ThumbnailWidget(QFrame):
         super().leaveEvent(event)
         self._hide_hover_label()
     
+    def hideEvent(self, event):
+        """Ensure hover label is hidden when widget is hidden."""
+        super().hideEvent(event)
+        self._hide_hover_label()
+    
     def _show_hover_label(self):
-        """Show custom hover label."""
+        """Show custom hover label with image info."""
         if self._hover_label is None:
             self._hover_label = QLabel()
             self._hover_label.setWindowFlags(
                 Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
             )
             self._hover_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-            self._hover_label.setStyleSheet(HOVER_LABEL_STYLE)
+            self._hover_label.setStyleSheet(DARK_HOVER_LABEL_STYLE if self._is_dark else HOVER_LABEL_STYLE)
         
-        self._hover_label.setText(self._tooltip_text)
+        # Load image info on first hover
+        if not self._info_loaded:
+            self._load_image_info()
+        
+        # Build tooltip text with image info
+        tooltip_lines = [self._tooltip_text]
+        if self._image_info:
+            if self._image_info.get('width') and self._image_info.get('height'):
+                tooltip_lines.append(f"{self._image_info['width']} × {self._image_info['height']}")
+            if self._image_info.get('size_str'):
+                tooltip_lines.append(self._image_info['size_str'])
+            if self._image_info.get('modified_str'):
+                tooltip_lines.append(self._image_info['modified_str'])
+        
+        self._hover_label.setText('\n'.join(tooltip_lines))
         self._hover_label.adjustSize()
         
         # Position below the widget
@@ -121,10 +145,18 @@ class ThumbnailWidget(QFrame):
         self._hover_label.move(global_pos)
         self._hover_label.show()
     
+    def _load_image_info(self):
+        """Load image info for tooltip display."""
+        from ..utils import get_image_info
+        self._image_info = get_image_info(self.file_path)
+        self._info_loaded = True
+    
     def _hide_hover_label(self):
         """Hide custom hover label."""
-        if self._hover_label:
+        if self._hover_label is not None:
             self._hover_label.hide()
+            self._hover_label.deleteLater()
+            self._hover_label = None
     
     def _load_thumbnail_async(self):
         """Load thumbnail asynchronously."""
@@ -197,7 +229,40 @@ class ThumbnailWidget(QFrame):
         """Set selection state and update style."""
         if self._selected != value:
             self._selected = value
-            self.setStyleSheet(THUMBNAIL_SELECTED_STYLE if value else THUMBNAIL_STYLE)
+            self._update_style()
+    
+    def _update_style(self):
+        """Update widget style based on selection and theme."""
+        if self._is_dark:
+            style = DARK_THUMBNAIL_SELECTED_STYLE if self._selected else DARK_THUMBNAIL_STYLE
+        else:
+            style = THUMBNAIL_SELECTED_STYLE if self._selected else THUMBNAIL_STYLE
+        self.setStyleSheet(style)
+    
+    def apply_theme(self, is_dark: bool):
+        """Apply theme to this widget."""
+        self._is_dark = is_dark
+        self._update_style()
+        
+        # Update name label color
+        if is_dark:
+            self.name_label.setStyleSheet(
+                "font-size: 10px; color: #e0e0e0; background: transparent; border: none; font-weight: 500;"
+            )
+            # Update image label background for loading state
+            if not self._pixmap or self._pixmap.isNull():
+                self.image_label.setStyleSheet("background: #3d3d5c; border: none; border-radius: 8px;")
+        else:
+            self.name_label.setStyleSheet(
+                "font-size: 10px; color: #1E293B; background: transparent; border: none; font-weight: 500;"
+            )
+            # Update image label background for loading state
+            if not self._pixmap or self._pixmap.isNull():
+                self.image_label.setStyleSheet("background: #F1F5F9; border: none; border-radius: 8px;")
+        
+        # Update hover label style if exists
+        if self._hover_label:
+            self._hover_label.setStyleSheet(DARK_HOVER_LABEL_STYLE if is_dark else HOVER_LABEL_STYLE)
     
     def update_size(self, new_size: int):
         """Update thumbnail size - only resize widget, use cached pixmap."""
@@ -243,6 +308,11 @@ class ThumbnailWidget(QFrame):
                 self.shift_clicked.emit(self.file_path)
             else:
                 self.clicked.emit(self.file_path)
+    
+    def mouseDoubleClickEvent(self, event):
+        """Handle double click for image preview."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.double_clicked.emit(self.file_path)
     
     def mouseMoveEvent(self, event):
         """Handle mouse move for drag operation."""
@@ -310,7 +380,7 @@ class ThumbnailWidget(QFrame):
     def contextMenuEvent(self, event):
         """Right-click to show context menu."""
         menu = QMenu(self)
-        menu.setStyleSheet(CONTEXT_MENU_STYLE)
+        menu.setStyleSheet(DARK_CONTEXT_MENU_STYLE if self._is_dark else CONTEXT_MENU_STYLE)
         
         if HAS_QTAWESOME:
             open_action = menu.addAction(qta.icon('fa5s.folder-open', color='#5B7FFF'), "打开来源")
