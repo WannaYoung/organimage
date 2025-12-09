@@ -5,10 +5,6 @@ Theme manager for handling light/dark mode switching.
 import sys
 from typing import Optional, Callable, List
 
-from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QPalette, QColor
-
 from .utils import get_dark_mode_preference, set_dark_mode_preference
 
 
@@ -40,24 +36,10 @@ def is_system_dark_mode() -> bool:
     return False
 
 
-class ThemeManager(QObject):
-    """Manages application theme (light/dark mode)."""
-    
-    theme_changed = pyqtSignal(bool)  # Emits True for dark mode
-    
-    _instance: Optional['ThemeManager'] = None
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+class ThemeManager:
+    """Manages application theme (light/dark mode). Simple class without QObject."""
     
     def __init__(self):
-        if self._initialized:
-            return
-        super().__init__()
-        self._initialized = True
         self._dark_mode = False
         self._callbacks: List[Callable[[bool], None]] = []
         
@@ -80,7 +62,6 @@ class ThemeManager(QObject):
             self._dark_mode = dark
             if save:
                 set_dark_mode_preference(dark)
-            self.theme_changed.emit(dark)
             for callback in self._callbacks:
                 callback(dark)
     
@@ -104,7 +85,13 @@ class ThemeManager(QObject):
             self._callbacks.remove(callback)
 
 
-# Global instance
+# Global singleton instance
+_theme_manager: Optional[ThemeManager] = None
+
+
 def get_theme_manager() -> ThemeManager:
     """Get the global theme manager instance."""
-    return ThemeManager()
+    global _theme_manager
+    if _theme_manager is None:
+        _theme_manager = ThemeManager()
+    return _theme_manager
