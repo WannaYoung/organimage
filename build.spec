@@ -75,7 +75,7 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='图片整理.app',
-        icon='assets/icon.icns',  # Add icon path here: 'assets/icon.icns'
+        icon='assets/icon.icns',
         bundle_identifier='com.organimage.app',
         info_plist={
             'CFBundleName': '图片整理',
@@ -107,5 +107,5 @@ else:
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
-        icon=None,  # Add icon path here: 'assets/icon.ico'
+        icon='assets/icon.ico',
     )
