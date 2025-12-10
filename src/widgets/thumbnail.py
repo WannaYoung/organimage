@@ -38,11 +38,12 @@ class ThumbnailWidget(QFrame):
     rename_requested = pyqtSignal(str)
     double_clicked = pyqtSignal(str)  # For image preview
     
-    def __init__(self, file_path: str, thumb_size: int = 120, current_dir: str = None):
+    def __init__(self, file_path: str, thumb_size: int = 120, current_dir: str = None, root_dir: str = None):
         super().__init__()
         self.file_path = file_path
         self.thumb_size = thumb_size
         self.current_dir = current_dir
+        self.root_dir = root_dir  # Root directory to check if reordering is allowed
         self.drag_start_position = None
         self._loader: Optional[ThumbnailLoader] = None
         self._pixmap: Optional[QPixmap] = None
@@ -405,9 +406,21 @@ class ThumbnailWidget(QFrame):
     
     def dragEnterEvent(self, event):
         """Handle drag enter for reordering."""
+        # Don't allow reordering in root directory
+        if self.current_dir and self.root_dir and self.current_dir == self.root_dir:
+            event.ignore()
+            return
+        
         mime_data = event.mimeData()
         if mime_data.hasText():
-            dragged_path = mime_data.text().split('\n')[0].strip()
+            # Check if multiple files are being dragged
+            dragged_paths = [p.strip() for p in mime_data.text().split('\n') if p.strip()]
+            if len(dragged_paths) > 1:
+                # Don't allow reordering when multiple files are selected
+                event.ignore()
+                return
+            
+            dragged_path = dragged_paths[0] if dragged_paths else ''
             # Only accept if it's a different file from same directory
             if dragged_path != self.file_path and self.current_dir:
                 if os.path.dirname(dragged_path) == self.current_dir:
@@ -427,10 +440,20 @@ class ThumbnailWidget(QFrame):
         self._is_drag_over = False
         self._update_drag_style()
         
+        # Don't allow reordering in root directory
+        if self.current_dir and self.root_dir and self.current_dir == self.root_dir:
+            return
+        
         mime_data = event.mimeData()
         if mime_data.hasText():
-            dragged_path = mime_data.text().split('\n')[0].strip()
-            if dragged_path != self.file_path:
+            # Check if multiple files are being dragged
+            dragged_paths = [p.strip() for p in mime_data.text().split('\n') if p.strip()]
+            if len(dragged_paths) > 1:
+                # Don't allow reordering when multiple files are selected
+                return
+            
+            dragged_path = dragged_paths[0] if dragged_paths else ''
+            if dragged_path and dragged_path != self.file_path:
                 # Emit reorder signal: dragged file should be placed before this file
                 self.reorder_requested.emit(dragged_path, self.file_path)
     

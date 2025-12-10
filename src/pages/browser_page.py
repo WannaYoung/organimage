@@ -42,7 +42,7 @@ from ..utils import (
     delete_file, delete_folder, rename_file, open_in_finder,
     reorder_files_by_list, add_recent_folder
 )
-from ..widgets import ThumbnailWidget, FolderButton, ImagePreviewDialog
+from ..widgets import ThumbnailWidget, FolderButton, ImagePreviewDialog, SelectionContainer
 
 
 class FileBrowserPage(QWidget):
@@ -277,8 +277,9 @@ class FileBrowserPage(QWidget):
         self.files_scroll.setStyleSheet(SCROLL_AREA_STYLE)
         self.files_scroll.viewport().setStyleSheet("background: transparent;")
         
-        self.files_container = QWidget()
-        self.files_container.setStyleSheet("background: transparent; border: none;")
+        self.files_container = SelectionContainer()
+        self.files_container.set_thumbnail_provider(self._get_thumbnail_widgets)
+        self.files_container.set_selection_handler(self._on_rubber_band_selection)
         self.files_grid = QGridLayout(self.files_container)
         self.files_grid.setSpacing(6)
         self.files_grid.setContentsMargins(4, 4, 4, 4)
@@ -427,7 +428,7 @@ class FileBrowserPage(QWidget):
         
         # Create thumbnails
         for i, file_path in enumerate(files):
-            thumb = ThumbnailWidget(file_path, self.thumb_size, self.current_path)
+            thumb = ThumbnailWidget(file_path, self.thumb_size, self.current_path, self.root_path)
             thumb.set_selection_provider(self._get_selected_files)
             thumb.clicked.connect(self._on_thumb_clicked)
             thumb.ctrl_clicked.connect(self._on_thumb_ctrl_clicked)
@@ -769,6 +770,27 @@ class FileBrowserPage(QWidget):
     def _get_selected_files(self) -> Set[str]:
         """Get the set of selected file paths for drag operations."""
         return self.selected_files
+    
+    def _get_thumbnail_widgets(self) -> List:
+        """Get list of thumbnail widgets for rubber band selection."""
+        return self.thumbnail_widgets
+    
+    def _on_rubber_band_selection(self, indices: List[int], clear: bool = True):
+        """Handle rubber band selection changes."""
+        if clear:
+            # Clear existing selection first
+            for thumb in self.thumbnail_widgets:
+                thumb.selected = False
+            self.selected_files.clear()
+        
+        # Select widgets at given indices
+        for idx in indices:
+            if 0 <= idx < len(self.thumbnail_widgets):
+                thumb = self.thumbnail_widgets[idx]
+                thumb.selected = True
+                self.selected_files.add(thumb.file_path)
+        
+        self._update_title()
     
     def _relayout_folders_grid(self):
         """Recalculate and apply folders grid layout."""
