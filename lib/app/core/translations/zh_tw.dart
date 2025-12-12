@@ -53,6 +53,12 @@ const Map<String, String> zhTW = {
 
   // Image Grid
   'refresh': '重新整理',
+  'loading': '載入中...',
+  'loading_scanning': '掃描中...',
+  'loading_importing': '匯入中...',
+  'loading_moving': '移動中...',
+  'loading_deleting': '刪除中...',
+  'loading_reordering': '重排序中...',
   'selected_count': '已選 @count',
   'no_images': '此資料夾沒有圖片',
   'drag_hint': '拖曳圖片到左側資料夾進行整理',

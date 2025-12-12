@@ -33,6 +33,8 @@ class _ImageThumbnailState extends State<ImageThumbnail>
     with SingleTickerProviderStateMixin {
   late final FPopoverController _popoverController;
 
+  Future<_TooltipInfo>? _tooltipInfoFuture;
+
   bool _skipNextTap = false;
 
   bool _mouseDown = false;
@@ -65,6 +67,17 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   void dispose() {
     _popoverController.dispose();
     super.dispose();
+  }
+
+  Future<_TooltipInfo> _loadTooltipInfo() async {
+    final file = File(widget.imagePath);
+    final stat = await file.stat();
+    final size = formatFileSize(stat.size);
+    final modified = stat.modified;
+    final dateStr =
+        '${modified.year}-${modified.month.toString().padLeft(2, '0')}-${modified.day.toString().padLeft(2, '0')}';
+    final fileName = p.basename(widget.imagePath);
+    return _TooltipInfo(fileName: fileName, size: size, dateStr: dateStr);
   }
 
   @override
@@ -399,29 +412,38 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       color: theme.colors.foreground,
     );
 
-    try {
-      final file = File(widget.imagePath);
-      final stat = file.statSync();
-      final size = formatFileSize(stat.size);
-      final modified = stat.modified;
-      final dateStr =
-          '${modified.year}-${modified.month.toString().padLeft(2, '0')}-${modified.day.toString().padLeft(2, '0')}';
-      final fileName = p.basename(widget.imagePath);
+    _tooltipInfoFuture ??= _loadTooltipInfo();
 
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTooltipRow(labelStyle, valueStyle, 'file_name'.tr, fileName),
-          const SizedBox(height: 4),
-          _buildTooltipRow(labelStyle, valueStyle, 'file_size'.tr, size),
-          const SizedBox(height: 4),
-          _buildTooltipRow(labelStyle, valueStyle, 'modified_date'.tr, dateStr),
-        ],
-      );
-    } catch (e) {
-      return Text(p.basename(widget.imagePath), style: valueStyle);
-    }
+    return FutureBuilder<_TooltipInfo>(
+      future: _tooltipInfoFuture,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        if (data == null) {
+          return Text(p.basename(widget.imagePath), style: valueStyle);
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTooltipRow(
+              labelStyle,
+              valueStyle,
+              'file_name'.tr,
+              data.fileName,
+            ),
+            const SizedBox(height: 4),
+            _buildTooltipRow(labelStyle, valueStyle, 'file_size'.tr, data.size),
+            const SizedBox(height: 4),
+            _buildTooltipRow(
+              labelStyle,
+              valueStyle,
+              'modified_date'.tr,
+              data.dateStr,
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildTooltipRow(
@@ -649,4 +671,16 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       ),
     );
   }
+}
+
+class _TooltipInfo {
+  final String fileName;
+  final String size;
+  final String dateStr;
+
+  const _TooltipInfo({
+    required this.fileName,
+    required this.size,
+    required this.dateStr,
+  });
 }

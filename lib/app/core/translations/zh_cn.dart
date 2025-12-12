@@ -53,6 +53,12 @@ const Map<String, String> zhCN = {
 
   // Image Grid
   'refresh': '刷新',
+  'loading': '加载中...',
+  'loading_scanning': '扫描中...',
+  'loading_importing': '导入中...',
+  'loading_moving': '移动中...',
+  'loading_deleting': '删除中...',
+  'loading_reordering': '重排序中...',
   'selected_count': '已选 @count',
   'no_images': '此文件夹没有图片',
   'drag_hint': '拖拽图片到左侧文件夹进行整理',

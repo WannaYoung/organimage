@@ -53,6 +53,12 @@ const Map<String, String> enUS = {
 
   // Image Grid
   'refresh': 'Refresh',
+  'loading': 'Loading...',
+  'loading_scanning': 'Scanning...',
+  'loading_importing': 'Importing...',
+  'loading_moving': 'Moving...',
+  'loading_deleting': 'Deleting...',
+  'loading_reordering': 'Reordering...',
   'selected_count': '@count selected',
   'no_images': 'No images in this folder',
   'drag_hint': 'Drag images to folders on the left to organize',

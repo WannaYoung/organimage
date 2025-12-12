@@ -30,6 +30,7 @@ class _ImageGridState extends State<ImageGrid> {
   bool _isDragSelecting = false;
   Offset? _dragStartLocal;
   Offset? _dragCurrentLocal;
+  bool _dragMoved = false;
   bool _dragAdditive = false;
   List<String> _dragBaseSelection = <String>[];
 
@@ -104,7 +105,7 @@ class _ImageGridState extends State<ImageGrid> {
   Widget _buildToolbar(BuildContext context) {
     final theme = FTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
           // Breadcrumb navigation
@@ -117,47 +118,56 @@ class _ImageGridState extends State<ImageGrid> {
             if (controller.selectedImages.isNotEmpty) {
               return FBadge(
                 style: FBadgeStyle.primary(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'selected_count'.trParams({
-                        'count': '${controller.selectedImages.length}',
-                      }),
-                    ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: controller.clearSelection,
-                      child: Icon(
-                        FIcons.x,
-                        size: 14,
-                        color: theme.colors.primaryForeground,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 5,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'selected_count'.trParams({
+                          'count': '${controller.selectedImages.length}',
+                        }),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: controller.clearSelection,
+                        child: Icon(
+                          FIcons.x,
+                          size: 14,
+                          color: theme.colors.primaryForeground,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
             return const SizedBox.shrink();
           }),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
 
           // Image count
           Obx(
             () => FBadge(
               style: FBadgeStyle.secondary(),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FIcons.image,
-                    size: 14,
-                    color: theme.colors.secondaryForeground,
-                  ),
-                  const SizedBox(width: 4),
-                  Text('${controller.imageFiles.length}'),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      FIcons.image,
+                      size: 20,
+                      color: theme.colors.secondaryForeground,
+                    ),
+                    const SizedBox(width: 4),
+                    Text('${controller.imageFiles.length}'),
+                  ],
+                ),
               ),
             ),
           ),
@@ -166,34 +176,46 @@ class _ImageGridState extends State<ImageGrid> {
 
           // Thumbnail size slider with icons
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
             decoration: BoxDecoration(
               color: theme.colors.secondary,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(80),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  FIcons.minimize2,
+                  FIcons.zoomOut,
                   size: 14,
                   color: theme.colors.mutedForeground,
                 ),
-                SizedBox(
-                  width: 100,
-                  child: FSlider(
-                    controller: _sliderController,
-                    onChange: (selection) {
-                      final value =
-                          minThumbnailSize +
-                          selection.offset.max *
-                              (maxThumbnailSize - minThumbnailSize);
-                      controller.setThumbnailSize(value);
-                    },
+                SizedBox(width: 5),
+                Padding(
+                  padding: EdgeInsetsGeometry.only(top: 10),
+                  child: SizedBox(
+                    width: 160,
+                    height: 25,
+                    child: FSlider(
+                      controller: _sliderController,
+                      style: (style) => style.copyWith(
+                        childPadding: EdgeInsets.zero,
+                        thumbSize: 15,
+                        crossAxisExtent: 5,
+                      ),
+                      onChange: (selection) {
+                        final value =
+                            minThumbnailSize +
+                            selection.offset.max *
+                                (maxThumbnailSize - minThumbnailSize);
+                        controller.setThumbnailSize(value);
+                      },
+                    ),
                   ),
                 ),
+                SizedBox(width: 5),
                 Icon(
-                  FIcons.maximize2,
+                  FIcons.zoomIn,
                   size: 14,
                   color: theme.colors.mutedForeground,
                 ),
@@ -206,12 +228,12 @@ class _ImageGridState extends State<ImageGrid> {
           // Refresh button with tooltip
           FTooltip(
             tipBuilder: (context, _) => Text('refresh'.tr),
-            child: FButton(
-              style: FButtonStyle.outline(),
+            child: FButton.icon(
+              style: FButtonStyle.ghost(),
               onPress: controller.loadCurrentDirectory,
               child: Icon(
                 FIcons.refreshCw,
-                size: 16,
+                size: 20,
                 color: theme.colors.foreground,
               ),
             ),
@@ -224,41 +246,77 @@ class _ImageGridState extends State<ImageGrid> {
   Widget _buildContent(BuildContext context) {
     final theme = FTheme.of(context);
     return Obx(() {
-      if (controller.isLoading.value) {
-        return const Center(child: FProgress());
-      }
+      final child = controller.imageFiles.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    FIcons.imageOff,
+                    size: 64,
+                    color: theme.colors.mutedForeground,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'no_images'.tr,
+                    style: theme.typography.base.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'drag_hint'.tr,
+                    style: theme.typography.sm.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _buildImageGrid(context);
 
-      if (controller.imageFiles.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                FIcons.imageOff,
-                size: 64,
-                color: theme.colors.mutedForeground,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'no_images'.tr,
-                style: theme.typography.base.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'drag_hint'.tr,
-                style: theme.typography.sm.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return _buildImageGrid(context);
+      return Stack(children: [child, _buildLoadingOverlay(theme)]);
     });
+  }
+
+  Widget _buildLoadingOverlay(FThemeData theme) {
+    if (!controller.isLoading.value) return const SizedBox.shrink();
+    final messageKey = controller.loadingMessageKey.value;
+    final message = messageKey == null ? 'loading'.tr : messageKey.tr;
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.background.withValues(alpha: 0.88),
+          ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              decoration: BoxDecoration(
+                color: theme.colors.secondary,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colors.border.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 30, height: 30, child: FProgress()),
+                  const SizedBox(width: 12),
+                  Text(
+                    message,
+                    style: theme.typography.base.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildImageGrid(BuildContext context) {
@@ -401,6 +459,7 @@ class _ImageGridState extends State<ImageGrid> {
 
           setState(() {
             _isDragSelecting = true;
+            _dragMoved = false;
             _dragAdditive = isCtrl;
             _dragBaseSelection = controller.selectedImages.toList();
             _dragStartLocal = local;
@@ -418,6 +477,14 @@ class _ImageGridState extends State<ImageGrid> {
             _dragCurrentLocal = local;
           });
 
+          final start = _dragStartLocal;
+          if (start != null && !_dragMoved) {
+            final delta = (local - start).distance;
+            if (delta >= 3) {
+              _dragMoved = true;
+            }
+          }
+
           final rect = _getSelectionRect();
           if (rect == null) return;
 
@@ -430,10 +497,16 @@ class _ImageGridState extends State<ImageGrid> {
         },
         onPointerUp: (event) {
           if (!_isDragSelecting) return;
+
+          if (!_dragMoved && !_dragAdditive) {
+            controller.clearSelection();
+          }
+
           setState(() {
             _isDragSelecting = false;
             _dragStartLocal = null;
             _dragCurrentLocal = null;
+            _dragMoved = false;
             _dragAdditive = false;
             _dragBaseSelection = <String>[];
           });
@@ -444,6 +517,7 @@ class _ImageGridState extends State<ImageGrid> {
             _isDragSelecting = false;
             _dragStartLocal = null;
             _dragCurrentLocal = null;
+            _dragMoved = false;
             _dragAdditive = false;
             _dragBaseSelection = <String>[];
           });

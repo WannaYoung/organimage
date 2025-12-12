@@ -5,7 +5,6 @@ import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/utils/image_scan_utils.dart';
 import '../controllers/browser_controller.dart';
 import 'image_preview.dart';
 
@@ -188,13 +187,18 @@ class _FolderItemState extends State<FolderItem>
     );
   }
 
-  void _openFirstImagePreview(BuildContext context) {
-    final firstImage = getFirstImageInDirectory(widget.folder.path);
+  Future<void> _openFirstImagePreview(BuildContext context) async {
+    final firstImage = await widget.controller.directoryService.getFirstImage(
+      widget.folder.path,
+    );
     if (firstImage == null) return;
 
-    // Get all images in this folder
-    final images = getImageFiles(widget.folder.path);
+    final images = await widget.controller.directoryService.getImageFiles(
+      widget.folder.path,
+    );
     final imageList = images.map((f) => f.path).toList();
+
+    if (!context.mounted) return;
 
     showImagePreview(context, imagePath: firstImage, imageList: imageList);
   }

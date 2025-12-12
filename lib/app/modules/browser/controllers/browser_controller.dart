@@ -4,13 +4,51 @@ import 'package:flutter/painting.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/utils/file_ops_utils.dart';
-import '../../../core/utils/image_scan_utils.dart';
-import '../../../core/utils/import_utils.dart';
-import '../../../core/utils/renumber_utils.dart';
 import '../../../core/utils/toast_utils.dart';
+import '../coordinators/reorder_coordinator.dart';
+import '../coordinators/selection_coordinator.dart';
+import '../services/directory_service.dart';
+import '../services/batch_operation_result.dart';
+import '../services/file_operation_service.dart';
+import '../services/renumber_service.dart';
 
 class BrowserController extends GetxController {
+  BrowserController({
+    required this.directoryService,
+    required this.fileOperationService,
+    required this.renumberService,
+  }) {
+    _selectionCoordinator = SelectionCoordinator(
+      selectedImages: selectedImages,
+      imageFiles: imageFiles,
+    );
+    _reorderCoordinator = ReorderCoordinator(
+      imageFiles: imageFiles,
+      isReordering: isReordering,
+      renumberService: renumberService,
+      getCurrentFolderPath: () => currentPath.value,
+      canReorderInCurrentFolder: () => canReorderInCurrentFolder,
+      setLoading: ({required bool value, String? messageKey}) {
+        isLoading.value = value;
+        loadingMessageKey.value = value ? messageKey : null;
+      },
+      refreshAfterCommit: () {
+        loadCurrentDirectory();
+        _clearImageCache();
+      },
+      showError: (message) {
+        showErrorToast(_formatErrorMessage(message));
+      },
+    );
+  }
+
+  final DirectoryService directoryService;
+  final FileOperationService fileOperationService;
+  final RenumberService renumberService;
+
+  late final SelectionCoordinator _selectionCoordinator;
+  late final ReorderCoordinator _reorderCoordinator;
+
   // Root path selected by user
   final Rx<String?> rootPath = Rx<String?>(null);
 
@@ -29,20 +67,17 @@ class BrowserController extends GetxController {
   // Selected image files
   final RxList<String> selectedImages = <String>[].obs;
 
-  String? _lastSelectedImagePath;
-
   // Thumbnail size
   final RxDouble thumbnailSize = 120.0.obs;
 
   // Loading state
   final RxBool isLoading = false.obs;
 
+  final Rx<String?> loadingMessageKey = Rx<String?>(null);
+
   final RxBool isReordering = false.obs;
 
-  String? _reorderDraggingPath;
-  List<String> _reorderOriginalOrder = <String>[];
-  String? _reorderLastTargetPath;
-  bool _reorderCommitted = false;
+  int _loadRequestId = 0;
 
   @override
   void onInit() {
@@ -61,41 +96,55 @@ class BrowserController extends GetxController {
   }
 
   void loadCurrentDirectory() {
-    if (currentPath.value == null) return;
+    _loadCurrentDirectoryAsync();
+  }
 
+  Future<void> _loadCurrentDirectoryAsync() async {
+    final selected = currentPath.value;
+    if (selected == null) return;
+
+    final requestId = ++_loadRequestId;
     isLoading.value = true;
+    loadingMessageKey.value = 'loading_scanning';
     try {
-      // Always load subdirectories from ROOT path (like Python version)
-      if (rootPath.value != null) {
-        subdirectories.value = getSubdirectories(rootPath.value!);
+      final root = rootPath.value;
+      if (root != null) {
+        final dirs = await directoryService.getSubdirectories(root);
+        if (requestId != _loadRequestId) return;
+        subdirectories.assignAll(dirs);
       }
-      // Load images from current selected folder
-      // Use assignAll to properly trigger GetX reactive update
-      final newFiles = getImageFiles(currentPath.value!);
-      imageFiles.assignAll(newFiles);
-      selectedImages.clear();
-      _lastSelectedImagePath = null;
 
-      Future.microtask(_refreshFolderMetaCache);
+      final newFiles = await directoryService.getImageFiles(selected);
+      if (requestId != _loadRequestId) return;
+      imageFiles.assignAll(newFiles);
+
+      _selectionCoordinator.clearSelection();
+
+      _refreshFolderMetaCacheAsync(requestId);
     } finally {
-      isLoading.value = false;
+      if (requestId == _loadRequestId) {
+        isLoading.value = false;
+        loadingMessageKey.value = null;
+      }
     }
   }
 
-  void _refreshFolderMetaCache() {
+  Future<void> _refreshFolderMetaCacheAsync(int requestId) async {
     final root = rootPath.value;
     if (root == null) return;
 
+    final folderPaths = <String>[root, ...subdirectories.map((d) => d.path)];
+    if (requestId != _loadRequestId) return;
+
+    final metas = await directoryService.getFolderMetas(folderPaths);
+    if (requestId != _loadRequestId) return;
+
     final nextCounts = <String, int>{};
     final nextPreviews = <String, String?>{};
-
-    nextCounts[root] = countFilesInDirectory(root);
-    nextPreviews[root] = getFirstImageInDirectory(root);
-
-    for (final dir in subdirectories) {
-      nextCounts[dir.path] = countFilesInDirectory(dir.path);
-      nextPreviews[dir.path] = getFirstImageInDirectory(dir.path);
-    }
+    metas.forEach((path, meta) {
+      nextCounts[path] = meta.$1;
+      nextPreviews[path] = meta.$2;
+    });
 
     folderFileCounts.assignAll(nextCounts);
     folderPreviewImages.assignAll(nextPreviews);
@@ -119,60 +168,15 @@ class BrowserController extends GetxController {
   }
 
   void toggleImageSelection(String imagePath) {
-    if (selectedImages.contains(imagePath)) {
-      selectedImages.remove(imagePath);
-    } else {
-      selectedImages.add(imagePath);
-    }
-
-    _lastSelectedImagePath = imagePath;
+    _selectionCoordinator.toggleImageSelection(imagePath);
   }
 
   void selectSingleImage(String imagePath) {
-    selectedImages
-      ..clear()
-      ..add(imagePath);
-    _lastSelectedImagePath = imagePath;
+    _selectionCoordinator.selectSingleImage(imagePath);
   }
 
   void selectRangeTo(String imagePath, {required bool additive}) {
-    final lastPath = _lastSelectedImagePath;
-    final paths = imageFiles.map((e) => e.path).toList();
-    if (paths.isEmpty) return;
-
-    final endIndex = paths.indexOf(imagePath);
-    if (endIndex < 0) {
-      selectSingleImage(imagePath);
-      return;
-    }
-
-    if (lastPath == null) {
-      selectSingleImage(imagePath);
-      return;
-    }
-
-    final startIndex = paths.indexOf(lastPath);
-    if (startIndex < 0) {
-      selectSingleImage(imagePath);
-      return;
-    }
-
-    final from = startIndex < endIndex ? startIndex : endIndex;
-    final to = startIndex < endIndex ? endIndex : startIndex;
-    final range = paths.sublist(from, to + 1);
-
-    if (!additive) {
-      selectedImages
-        ..clear()
-        ..addAll(range);
-    } else {
-      final union = <String>{...selectedImages, ...range}.toList();
-      selectedImages
-        ..clear()
-        ..addAll(union);
-    }
-
-    _lastSelectedImagePath = imagePath;
+    _selectionCoordinator.selectRangeTo(imagePath, additive: additive);
   }
 
   void handleImageTapSelection(
@@ -180,22 +184,15 @@ class BrowserController extends GetxController {
     required bool isCtrlPressed,
     required bool isShiftPressed,
   }) {
-    if (isShiftPressed) {
-      selectRangeTo(imagePath, additive: isCtrlPressed);
-      return;
-    }
-
-    if (isCtrlPressed) {
-      toggleImageSelection(imagePath);
-      return;
-    }
-
-    selectSingleImage(imagePath);
+    _selectionCoordinator.handleImageTapSelection(
+      imagePath,
+      isCtrlPressed: isCtrlPressed,
+      isShiftPressed: isShiftPressed,
+    );
   }
 
   void clearSelection() {
-    selectedImages.clear();
-    _lastSelectedImagePath = null;
+    _selectionCoordinator.clearSelection();
   }
 
   String _formatErrorMessage(String keyOrMessage) {
@@ -212,9 +209,11 @@ class BrowserController extends GetxController {
 
   // Refresh UI after a file system change.
   // This keeps the original workflow: optional renumber -> reload -> clear cache.
-  void _refreshAfterFileOperation({required bool renumberCurrentFolder}) {
+  Future<void> _refreshAfterFileOperation({
+    required bool renumberCurrentFolder,
+  }) async {
     if (renumberCurrentFolder && !isAtRoot && currentPath.value != null) {
-      renumberFilesInFolder(currentPath.value!);
+      await renumberService.renumberFilesInFolder(currentPath.value!);
     }
     loadCurrentDirectory();
     _clearImageCache();
@@ -225,40 +224,36 @@ class BrowserController extends GetxController {
     if (folderPath == null) return;
     if (paths.isEmpty) return;
 
-    final imagePaths = <String>[];
-    for (final path in paths) {
-      if (File(path).existsSync() && isImageFile(path)) {
-        imagePaths.add(path);
-      }
-    }
-    if (imagePaths.isEmpty) return;
-
     isLoading.value = true;
+    loadingMessageKey.value = 'loading_importing';
     try {
-      final (success, result) = importExternalImagesToFolder(
-        imagePaths,
-        folderPath,
-      );
-      if (!success) {
-        showErrorToast(_formatErrorMessage(result));
+      final BatchOperationResult result = await fileOperationService
+          .importExternalImagesToFolderFiltered(
+            paths,
+            folderPath,
+            isImageFile: directoryService.isImageFile,
+          );
+
+      if (result.successCount == 0) return;
+      if (result.failCount > 0) {
+        for (final error in result.errorMessages) {
+          showErrorToast(_formatErrorMessage(error));
+        }
         return;
       }
 
-      _refreshAfterFileOperation(renumberCurrentFolder: false);
+      await _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast(
-        'imported_count'.trParams({'count': '${imagePaths.length}'}),
+        'imported_count'.trParams({'count': '${result.successCount}'}),
       );
     } finally {
       isLoading.value = false;
+      loadingMessageKey.value = null;
     }
   }
 
   void selectAllImages() {
-    final all = imageFiles.map((e) => e.path).toList();
-    selectedImages
-      ..clear()
-      ..addAll(all);
-    _lastSelectedImagePath = all.isNotEmpty ? all.last : null;
+    _selectionCoordinator.selectAllImages();
   }
 
   void applyDragSelection(
@@ -266,15 +261,11 @@ class BrowserController extends GetxController {
     required bool additive,
     List<String>? baseSelection,
   }) {
-    final base = baseSelection ?? <String>[];
-    final next = additive ? <String>{...base, ...paths}.toList() : paths;
-    selectedImages
-      ..clear()
-      ..addAll(next);
-
-    if (paths.isNotEmpty) {
-      _lastSelectedImagePath = paths.last;
-    }
+    _selectionCoordinator.applyDragSelection(
+      paths,
+      additive: additive,
+      baseSelection: baseSelection,
+    );
   }
 
   Future<void> moveSelectedToFolder(String folderPath) async {
@@ -286,26 +277,26 @@ class BrowserController extends GetxController {
     }
 
     isLoading.value = true;
-    int successCount = 0;
-    int failCount = 0;
+    loadingMessageKey.value = 'loading_moving';
     try {
-      for (final imagePath in selectedImages.toList()) {
-        final (success, result) = moveFileToFolder(imagePath, folderPath);
-        if (success) {
-          selectedImages.remove(imagePath);
-          successCount++;
-        } else {
-          failCount++;
-          showErrorToast(_formatErrorMessage(result));
-        }
+      final BatchOperationResult result = await fileOperationService
+          .moveFilesToFolder(selectedImages.toList(), folderPath);
+      for (final error in result.errorMessages) {
+        showErrorToast(_formatErrorMessage(error));
+      }
+      if (result.succeededPaths.isNotEmpty) {
+        selectedImages.removeWhere((p) => result.succeededPaths.contains(p));
       }
 
-      _refreshAfterFileOperation(renumberCurrentFolder: true);
-      if (successCount > 0 && failCount == 0) {
-        showSuccessToast('moved_count'.trParams({'count': '$successCount'}));
+      await _refreshAfterFileOperation(renumberCurrentFolder: true);
+      if (result.successCount > 0 && result.failCount == 0) {
+        showSuccessToast(
+          'moved_count'.trParams({'count': '${result.successCount}'}),
+        );
       }
     } finally {
       isLoading.value = false;
+      loadingMessageKey.value = null;
     }
   }
 
@@ -314,22 +305,21 @@ class BrowserController extends GetxController {
     if (selectedImages.isEmpty || rootPath.value == null) return;
 
     isLoading.value = true;
+    loadingMessageKey.value = 'loading_moving';
     try {
-      for (final imagePath in selectedImages.toList()) {
-        final (success, result) = moveFileToFolderKeepName(
-          imagePath,
-          rootPath.value!,
-        );
-        if (success) {
-          selectedImages.remove(imagePath);
-        } else {
-          showErrorToast(_formatErrorMessage(result));
-        }
+      final BatchOperationResult result = await fileOperationService
+          .moveFilesToFolderKeepName(selectedImages.toList(), rootPath.value!);
+      for (final error in result.errorMessages) {
+        showErrorToast(_formatErrorMessage(error));
+      }
+      if (result.succeededPaths.isNotEmpty) {
+        selectedImages.removeWhere((p) => result.succeededPaths.contains(p));
       }
 
-      _refreshAfterFileOperation(renumberCurrentFolder: true);
+      await _refreshAfterFileOperation(renumberCurrentFolder: true);
     } finally {
       isLoading.value = false;
+      loadingMessageKey.value = null;
     }
   }
 
@@ -337,24 +327,23 @@ class BrowserController extends GetxController {
     if (selectedImages.isEmpty) return;
 
     isLoading.value = true;
-    int successCount = 0;
-    int failCount = 0;
+    loadingMessageKey.value = 'loading_deleting';
     try {
-      for (final imagePath in selectedImages.toList()) {
-        final (success, result) = deleteFile(imagePath);
-        if (success) {
-          selectedImages.remove(imagePath);
-          successCount++;
-        } else {
-          failCount++;
-          showErrorToast(_formatErrorMessage(result));
-        }
+      final BatchOperationResult result = await fileOperationService
+          .deleteFiles(selectedImages.toList());
+      for (final error in result.errorMessages) {
+        showErrorToast(_formatErrorMessage(error));
+      }
+      if (result.succeededPaths.isNotEmpty) {
+        selectedImages.removeWhere((p) => result.succeededPaths.contains(p));
       }
 
-      _refreshAfterFileOperation(renumberCurrentFolder: true);
+      await _refreshAfterFileOperation(renumberCurrentFolder: true);
 
-      if (successCount > 0 && failCount == 0) {
-        showSuccessToast('deleted_count'.trParams({'count': '$successCount'}));
+      if (result.successCount > 0 && result.failCount == 0) {
+        showSuccessToast(
+          'deleted_count'.trParams({'count': '${result.successCount}'}),
+        );
       }
     } finally {
       isLoading.value = false;
@@ -364,12 +353,15 @@ class BrowserController extends GetxController {
   Future<void> createNewFolder(String folderName) async {
     if (currentPath.value == null) return;
 
-    final (success, result) = createFolder(currentPath.value!, folderName);
+    final (success, result) = await fileOperationService.createFolder(
+      currentPath.value!,
+      folderName,
+    );
     if (success) {
       loadCurrentDirectory();
       showSuccessToast('folder_created'.tr);
     } else {
-      showErrorToast(result);
+      showErrorToast(_formatErrorMessage(result));
     }
   }
 
@@ -391,151 +383,58 @@ class BrowserController extends GetxController {
   }
 
   void startReorder(String imagePath) {
-    if (!canReorderInCurrentFolder) return;
-    _reorderDraggingPath = imagePath;
-    _reorderOriginalOrder = imageFiles.map((e) => e.path).toList();
-    _reorderLastTargetPath = null;
-    _reorderCommitted = false;
-    isReordering.value = true;
+    _reorderCoordinator.startReorder(imagePath);
   }
 
   void previewReorderTo(String targetImagePath) {
-    if (!isReordering.value) return;
-    final draggingPath = _reorderDraggingPath;
-    if (draggingPath == null) return;
-    if (draggingPath == targetImagePath) return;
-    if (_reorderLastTargetPath == targetImagePath) return;
-
-    final paths = imageFiles.map((e) => e.path).toList();
-    if (paths.toSet().length != paths.length) {
-      final unique = <String>[];
-      for (final path in paths) {
-        if (!unique.contains(path)) {
-          unique.add(path);
-        }
-      }
-      imageFiles.assignAll(unique.map((p) => File(p)).toList());
-      return;
-    }
-    final fromIndex = paths.indexOf(draggingPath);
-    final toIndex = paths.indexOf(targetImagePath);
-    if (fromIndex < 0 || toIndex < 0) return;
-    if (fromIndex == toIndex) return;
-
-    paths.removeAt(fromIndex);
-    paths.insert(toIndex, draggingPath);
-    _reorderLastTargetPath = targetImagePath;
-    imageFiles.assignAll(paths.map((p) => File(p)).toList());
+    _reorderCoordinator.previewReorderTo(targetImagePath);
   }
 
   void cancelReorderPreview() {
-    if (!isReordering.value) return;
-    if (_reorderCommitted) return;
-    if (_reorderOriginalOrder.isNotEmpty) {
-      imageFiles.assignAll(_reorderOriginalOrder.map((p) => File(p)).toList());
-    }
-    _reorderDraggingPath = null;
-    _reorderOriginalOrder = <String>[];
-    _reorderLastTargetPath = null;
-    isReordering.value = false;
+    _reorderCoordinator.cancelReorderPreview();
   }
 
   void commitReorderAndRenumber() {
-    if (!isReordering.value) return;
-    if (!canReorderInCurrentFolder) {
-      cancelReorderPreview();
-      return;
-    }
-
-    final folderPath = currentPath.value;
-    if (folderPath == null) {
-      cancelReorderPreview();
-      return;
-    }
-
-    final orderedPaths = imageFiles.map((e) => e.path).toList();
-    if (_reorderOriginalOrder.length == orderedPaths.length) {
-      var same = true;
-      for (var i = 0; i < orderedPaths.length; i++) {
-        if (_reorderOriginalOrder[i] != orderedPaths[i]) {
-          same = false;
-          break;
-        }
-      }
-      if (same) {
-        _reorderDraggingPath = null;
-        _reorderOriginalOrder = <String>[];
-        isReordering.value = false;
-        return;
-      }
-    }
-
-    _reorderCommitted = true;
-    isReordering.value = false;
-    try {
-      isLoading.value = true;
-      final (success, result) = renumberFilesInFolderByOrderUtil(
-        folderPath,
-        orderedPaths,
-      );
-      if (!success) {
-        showErrorToast(result);
-      }
-      loadCurrentDirectory();
-      _clearImageCache();
-    } finally {
-      _reorderDraggingPath = null;
-      _reorderOriginalOrder = <String>[];
-      _reorderLastTargetPath = null;
-      isLoading.value = false;
-    }
+    _reorderCoordinator.commitReorderAndRenumber();
   }
 
   void handleReorderDragEnd({required bool wasAccepted}) {
-    if (_reorderCommitted) return;
-    if (!isReordering.value) return;
-    if (wasAccepted) {
-      endReorderAfterAcceptedDrop();
-    } else {
-      cancelReorderPreview();
-    }
+    _reorderCoordinator.handleReorderDragEnd(wasAccepted: wasAccepted);
   }
 
   void endReorderAfterAcceptedDrop() {
-    if (!isReordering.value) return;
-    if (_reorderCommitted) return;
-    _reorderDraggingPath = null;
-    _reorderOriginalOrder = <String>[];
-    _reorderLastTargetPath = null;
-    isReordering.value = false;
+    _reorderCoordinator.endReorderAfterAcceptedDrop();
   }
 
   // Open file or folder in system file manager
-  void openInFinder(String path) {
-    final result = openInFinderUtil(path);
+  Future<void> openInFinder(String path) async {
+    final result = await fileOperationService.openInFinder(path);
     if (!result.$1) {
-      showErrorToast(result.$2);
+      showErrorToast(_formatErrorMessage(result.$2));
     }
   }
 
   // Rename a single image
-  void renameImage(String imagePath, String newName) {
-    final (success, result) = renameFile(imagePath, newName);
+  Future<void> renameImage(String imagePath, String newName) async {
+    final (success, result) = await fileOperationService.renameFile(
+      imagePath,
+      newName,
+    );
     if (success) {
       loadCurrentDirectory();
       showSuccessToast('image_renamed'.tr);
     } else {
-      showErrorToast(result);
+      showErrorToast(_formatErrorMessage(result));
     }
   }
 
   // Delete a single image
   // If in a subfolder, renumber remaining files after deletion
-  void deleteImage(String imagePath) {
-    final (success, result) = deleteFile(imagePath);
+  Future<void> deleteImage(String imagePath) async {
+    final (success, result) = await fileOperationService.deleteFile(imagePath);
     if (success) {
       selectedImages.remove(imagePath);
-      _refreshAfterFileOperation(renumberCurrentFolder: true);
+      await _refreshAfterFileOperation(renumberCurrentFolder: true);
       showSuccessToast('image_deleted'.tr);
     } else {
       showErrorToast(_formatErrorMessage(result));
@@ -543,10 +442,12 @@ class BrowserController extends GetxController {
   }
 
   // Delete a folder by path
-  void deleteFolderByPath(String folderPath) {
-    final (success, result) = deleteFolder(folderPath);
+  Future<void> deleteFolderByPath(String folderPath) async {
+    final (success, result) = await fileOperationService.deleteFolder(
+      folderPath,
+    );
     if (success) {
-      _refreshAfterFileOperation(renumberCurrentFolder: false);
+      await _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast('folder_deleted'.tr);
     } else {
       showErrorToast(_formatErrorMessage(result));
@@ -554,8 +455,11 @@ class BrowserController extends GetxController {
   }
 
   // Rename folder and all its contents
-  void renameFolderWithContents(String folderPath, String newName) {
-    final (success, newPath) = renameFolderWithContentsUtil(
+  Future<void> renameFolderWithContents(
+    String folderPath,
+    String newName,
+  ) async {
+    final (success, newPath) = await renumberService.renameFolderWithContents(
       folderPath,
       newName,
     );
@@ -564,10 +468,10 @@ class BrowserController extends GetxController {
       if (currentPath.value == folderPath) {
         currentPath.value = newPath;
       }
-      _refreshAfterFileOperation(renumberCurrentFolder: false);
+      await _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast('folder_renamed'.tr);
     } else {
-      showErrorToast(newPath);
+      showErrorToast(_formatErrorMessage(newPath));
     }
   }
 }

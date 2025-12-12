@@ -1,10 +1,40 @@
+import 'dart:isolate';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'image_scan_utils.dart';
+import '../../../core/constants.dart';
 
-(bool, String) renumberFilesInFolderByOrderUtil(
+class RenumberService {
+  Future<(bool, String)> renumberFilesInFolderByOrder(
+    String folderPath,
+    List<String> orderedFilePaths,
+  ) {
+    return Isolate.run(
+      () => _renumberFilesInFolderByOrderSync(folderPath, orderedFilePaths),
+    );
+  }
+
+  Future<(bool, String)> renumberFilesInFolder(String folderPath) {
+    return Isolate.run(() => _renumberFilesInFolderSync(folderPath));
+  }
+
+  Future<(bool, String)> renameFolderWithContents(
+    String folderPath,
+    String newName,
+  ) {
+    return Isolate.run(
+      () => _renameFolderWithContentsSync(folderPath, newName),
+    );
+  }
+}
+
+bool _isImageFile(String filePath) {
+  final ext = p.extension(filePath).toLowerCase();
+  return imageExtensions.contains(ext);
+}
+
+(bool, String) _renumberFilesInFolderByOrderSync(
   String folderPath,
   List<String> orderedFilePaths,
 ) {
@@ -18,7 +48,7 @@ import 'image_scan_utils.dart';
   try {
     final existing = <String>[];
     for (final entity in dir.listSync()) {
-      if (entity is File && isImageFile(entity.path)) {
+      if (entity is File && _isImageFile(entity.path)) {
         existing.add(entity.path);
       }
     }
@@ -63,7 +93,7 @@ import 'image_scan_utils.dart';
   }
 }
 
-(bool, String) renumberFilesInFolder(String folderPath) {
+(bool, String) _renumberFilesInFolderSync(String folderPath) {
   final dir = Directory(folderPath);
   if (!dir.existsSync()) {
     return (false, 'error_folder_not_exist');
@@ -74,7 +104,7 @@ import 'image_scan_utils.dart';
   try {
     final imageFiles = <String>[];
     for (final entity in dir.listSync()) {
-      if (entity is File && isImageFile(entity.path)) {
+      if (entity is File && _isImageFile(entity.path)) {
         imageFiles.add(entity.path);
       }
     }
@@ -107,7 +137,10 @@ import 'image_scan_utils.dart';
   }
 }
 
-(bool, String) renameFolderWithContentsUtil(String folderPath, String newName) {
+(bool, String) _renameFolderWithContentsSync(
+  String folderPath,
+  String newName,
+) {
   final oldName = p.basename(folderPath);
   final parentDir = p.dirname(folderPath);
   final newFolderPath = p.join(parentDir, newName);
@@ -123,7 +156,7 @@ import 'image_scan_utils.dart';
   try {
     final imageFiles = <String>[];
     for (final entity in Directory(folderPath).listSync()) {
-      if (entity is File && isImageFile(entity.path)) {
+      if (entity is File && _isImageFile(entity.path)) {
         imageFiles.add(entity.path);
       }
     }
