@@ -3,6 +3,88 @@ import 'package:path/path.dart' as p;
 
 import '../constants.dart';
 
+(bool, String) movePathToTrash(String path) {
+  if (!File(path).existsSync() && !Directory(path).existsSync()) {
+    return (false, 'error_path_not_exist');
+  }
+
+  try {
+    if (Platform.isMacOS) {
+      final escaped = path.replaceAll('"', '\\"');
+      final script =
+          'tell application "Finder" to delete POSIX file "$escaped"';
+      final result = Process.runSync('osascript', ['-e', script]);
+      if (result.exitCode == 0) {
+        return (true, 'success');
+      }
+      return (false, 'error_trash_failed');
+    }
+
+    if (Platform.isWindows) {
+      final escaped = path.replaceAll("'", "''");
+      final command =
+          "\$shell = New-Object -ComObject Shell.Application; "
+          "\$recycleBin = \$shell.Namespace(0xA); "
+          "\$recycleBin.MoveHere('$escaped')";
+      final result = Process.runSync('powershell', [
+        '-NoProfile',
+        '-Command',
+        command,
+      ]);
+      if (result.exitCode == 0) {
+        return (true, 'success');
+      }
+      return (false, 'error_trash_failed');
+    }
+
+    final result = Process.runSync('gio', ['trash', path]);
+    if (result.exitCode == 0) {
+      return (true, 'success');
+    }
+    return (false, 'error_trash_failed');
+  } catch (e) {
+    return (false, 'error_trash_failed');
+  }
+}
+
+(bool, String) importExternalImagesToFolder(
+  List<String> sourcePaths,
+  String folderPath,
+) {
+  final dir = Directory(folderPath);
+  if (!dir.existsSync()) {
+    return (false, 'error_target_not_exist');
+  }
+  if (sourcePaths.isEmpty) {
+    return (true, 'success');
+  }
+
+  final folderName = p.basename(folderPath);
+  final imageSources = <String>[];
+  for (final path in sourcePaths) {
+    if (File(path).existsSync() && isImageFile(path)) {
+      imageSources.add(path);
+    }
+  }
+  if (imageSources.isEmpty) {
+    return (true, 'success');
+  }
+
+  try {
+    var nextNum = getNextFileNumber(folderPath, folderName);
+    for (final src in imageSources) {
+      final ext = p.extension(src);
+      final newName = '$folderName (${nextNum.toString().padLeft(3, '0')})$ext';
+      final newPath = p.join(folderPath, newName);
+      File(src).copySync(newPath);
+      nextNum++;
+    }
+    return (true, 'success');
+  } catch (e) {
+    return (false, 'error_import_failed');
+  }
+}
+
 /// Check if a file is a supported image format
 bool isImageFile(String filePath) {
   final ext = p.extension(filePath).toLowerCase();
@@ -248,36 +330,22 @@ int getNextFileNumber(String folderPath, String folderName) {
   }
 }
 
-/// Delete a file (move to trash not supported, permanent delete)
+/// Delete a file
 /// Returns (success, messageKey)
 (bool, String) deleteFile(String filePath) {
-  final file = File(filePath);
-  if (!file.existsSync()) {
+  if (!File(filePath).existsSync()) {
     return (false, 'error_file_not_exist');
   }
-
-  try {
-    file.deleteSync();
-    return (true, 'success');
-  } catch (e) {
-    return (false, e.toString());
-  }
+  return movePathToTrash(filePath);
 }
 
 /// Delete a folder and all its contents
 /// Returns (success, messageKey)
 (bool, String) deleteFolder(String folderPath) {
-  final dir = Directory(folderPath);
-  if (!dir.existsSync()) {
+  if (!Directory(folderPath).existsSync()) {
     return (false, 'error_folder_not_exist');
   }
-
-  try {
-    dir.deleteSync(recursive: true);
-    return (true, 'success');
-  } catch (e) {
-    return (false, e.toString());
-  }
+  return movePathToTrash(folderPath);
 }
 
 /// Rename a file

@@ -35,18 +35,6 @@ class _FolderItemState extends State<FolderItem>
     super.dispose();
   }
 
-  int _getFileCount() {
-    try {
-      return widget.folder.listSync().whereType<File>().length;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  String? _getPreviewImage() {
-    return getFirstImageInDirectory(widget.folder.path);
-  }
-
   Widget _buildFolderIcon(FThemeData theme, bool isHighlighted) {
     return Container(
       color: theme.colors.secondary,
@@ -68,8 +56,6 @@ class _FolderItemState extends State<FolderItem>
   Widget build(BuildContext context) {
     final theme = FTheme.of(context);
     final folderName = p.basename(widget.folder.path);
-    final fileCount = _getFileCount();
-    final previewImage = _getPreviewImage();
 
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
@@ -125,6 +111,12 @@ class _FolderItemState extends State<FolderItem>
           builder: (context, controller, child) => Obx(() {
             final isSelected =
                 widget.controller.currentPath.value == widget.folder.path;
+            final fileCount = widget.controller.getFolderFileCount(
+              widget.folder.path,
+            );
+            final previewImage = widget.controller.getFolderPreviewImage(
+              widget.folder.path,
+            );
             return GestureDetector(
               onTap: () =>
                   widget.controller.navigateToFolder(widget.folder.path),

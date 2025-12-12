@@ -67,7 +67,10 @@ const Map<String, String> zhCN = {
   // Context Menu
   'rename': '重命名',
   'show_in_finder': '在 Finder 中显示',
+  'move_to_folder': '移入文件夹',
+  'choose_target_folder': '选择目标文件夹',
   'delete': '删除',
+  'delete_selected': '删除所选',
 
   // Dialogs
   'rename_folder': '重命名文件夹',
@@ -77,8 +80,8 @@ const Map<String, String> zhCN = {
   'delete_folder': '删除文件夹',
   'delete_image': '删除图片',
   'action_irreversible': '此操作不可撤销',
-  'folder_delete_warning': '文件夹 "@name" 及其所有内容将被永久删除',
-  'image_delete_warning': '图片 "@name" 将被永久删除',
+  'folder_delete_warning': '文件夹 "@name" 及其所有内容将移入回收站',
+  'image_delete_warning': '图片 "@name" 将移入回收站',
 
   // Messages
   'success': '成功',
@@ -88,7 +91,9 @@ const Map<String, String> zhCN = {
   'folder_deleted': '文件夹删除成功',
   'image_renamed': '重命名成功',
   'image_deleted': '删除成功',
+  'deleted_count': '已删除 @count 张图片',
   'moved_count': '已移动 @count 张图片',
+  'imported_count': '已导入 @count 张图片',
 
   // Tooltip
   'file_name': '文件名',
@@ -104,4 +109,6 @@ const Map<String, String> zhCN = {
   'error_folder_exists': '文件夹已存在',
   'error_folder_not_exist': '文件夹不存在',
   'error_path_not_exist': '路径不存在',
+  'error_trash_failed': '移入回收站失败',
+  'error_import_failed': '导入失败',
 };

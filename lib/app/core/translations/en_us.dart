@@ -67,7 +67,10 @@ const Map<String, String> enUS = {
   // Context Menu
   'rename': 'Rename',
   'show_in_finder': 'Show in Finder',
+  'move_to_folder': 'Move to Folder',
+  'choose_target_folder': 'Choose target folder',
   'delete': 'Delete',
+  'delete_selected': 'Delete Selected',
 
   // Dialogs
   'rename_folder': 'Rename Folder',
@@ -78,8 +81,8 @@ const Map<String, String> enUS = {
   'delete_image': 'Delete Image',
   'action_irreversible': 'This action cannot be undone',
   'folder_delete_warning':
-      'Folder "@name" and all its contents will be permanently deleted',
-  'image_delete_warning': 'Image "@name" will be permanently deleted',
+      'Folder "@name" and all its contents will be moved to Trash',
+  'image_delete_warning': 'Image "@name" will be moved to Trash',
 
   // Messages
   'success': 'Success',
@@ -89,7 +92,9 @@ const Map<String, String> enUS = {
   'folder_deleted': 'Folder deleted successfully',
   'image_renamed': 'Image renamed successfully',
   'image_deleted': 'Image deleted successfully',
+  'deleted_count': '@count images deleted',
   'moved_count': '@count images moved',
+  'imported_count': '@count images imported',
 
   // Tooltip
   'file_name': 'File name',
@@ -105,4 +110,6 @@ const Map<String, String> enUS = {
   'error_folder_exists': 'Folder already exists',
   'error_folder_not_exist': 'Folder does not exist',
   'error_path_not_exist': 'Path does not exist',
+  'error_trash_failed': 'Move to Trash failed',
+  'error_import_failed': 'Import failed',
 };

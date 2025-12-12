@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
@@ -31,6 +32,8 @@ class _ImageGridState extends State<ImageGrid> {
   Offset? _dragCurrentLocal;
   bool _dragAdditive = false;
   List<String> _dragBaseSelection = <String>[];
+
+  bool _isExternalDragging = false;
 
   BrowserController get controller => widget.controller;
 
@@ -316,6 +319,27 @@ class _ImageGridState extends State<ImageGrid> {
         key: _stackKey,
         children: [
           grid,
+          if (_isExternalDragging)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.primary.withValues(alpha: 0.08),
+                    border: Border.all(color: theme.colors.primary, width: 2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'drag_hint'.tr,
+                      style: theme.typography.base.copyWith(
+                        color: theme.colors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Positioned.fill(
             child: Listener(
               behavior: HitTestBehavior.translucent,
@@ -329,12 +353,9 @@ class _ImageGridState extends State<ImageGrid> {
 
                 if (_isPointerOnAnyItem(event.position)) return;
 
-                final keys = HardwareKeyboard.instance.logicalKeysPressed;
+                final keyboard = HardwareKeyboard.instance;
                 final isCtrl =
-                    keys.contains(LogicalKeyboardKey.controlLeft) ||
-                    keys.contains(LogicalKeyboardKey.controlRight) ||
-                    keys.contains(LogicalKeyboardKey.metaLeft) ||
-                    keys.contains(LogicalKeyboardKey.metaRight);
+                    keyboard.isControlPressed || keyboard.isMetaPressed;
 
                 final stackBox =
                     _stackKey.currentContext?.findRenderObject() as RenderBox?;
@@ -397,8 +418,29 @@ class _ImageGridState extends State<ImageGrid> {
         ],
       );
 
+      final dropWrapped = DropTarget(
+        onDragEntered: (details) {
+          setState(() {
+            _isExternalDragging = true;
+          });
+        },
+        onDragExited: (details) {
+          setState(() {
+            _isExternalDragging = false;
+          });
+        },
+        onDragDone: (details) {
+          setState(() {
+            _isExternalDragging = false;
+          });
+          final paths = details.files.map((f) => f.path).toList();
+          controller.importExternalImagesToCurrentFolder(paths);
+        },
+        child: gridWithDragSelect,
+      );
+
       if (!controller.canReorderInCurrentFolder) {
-        return gridWithDragSelect;
+        return dropWrapped;
       }
 
       return DragTarget<List<String>>(
@@ -410,7 +452,7 @@ class _ImageGridState extends State<ImageGrid> {
           controller.commitReorderAndRenumber();
         },
         builder: (context, candidateData, rejectedData) {
-          return gridWithDragSelect;
+          return dropWrapped;
         },
       );
     });

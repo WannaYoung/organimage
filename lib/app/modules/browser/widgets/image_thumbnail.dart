@@ -40,6 +40,20 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   bool _mouseCtrlPressed = false;
   bool _mouseShiftPressed = false;
 
+  bool _isCtrlOrMetaPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight) ||
+        keys.contains(LogicalKeyboardKey.metaLeft) ||
+        keys.contains(LogicalKeyboardKey.metaRight);
+  }
+
+  bool _isShiftPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.shiftLeft) ||
+        keys.contains(LogicalKeyboardKey.shiftRight);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,16 +107,43 @@ class _ImageThumbnailState extends State<ImageThumbnail>
               },
             ),
             FItem(
-              prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
-              title: Text(
-                'delete'.tr,
-                style: TextStyle(color: theme.colors.destructive),
-              ),
+              prefix: const Icon(FIcons.move),
+              title: Text('move_to_folder'.tr),
               onPress: () {
                 _popoverController.hide();
-                _showDeleteConfirmDialog(context, fileName);
+                _ensureSelectionForAction();
+                _showMoveToFolderDialog(context);
               },
             ),
+            if (widget.controller.selectedImages.length <= 1)
+              FItem(
+                prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
+                title: Text(
+                  'delete'.tr,
+                  style: TextStyle(color: theme.colors.destructive),
+                ),
+                onPress: () {
+                  _popoverController.hide();
+                  _ensureSelectionForAction();
+                  _showDeleteConfirmDialog(context, fileName);
+                },
+              )
+            else
+              FItem(
+                prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
+                title: Text(
+                  'delete_selected'.tr,
+                  style: TextStyle(color: theme.colors.destructive),
+                ),
+                onPress: () {
+                  _popoverController.hide();
+                  _ensureSelectionForAction();
+                  _showDeleteSelectedConfirmDialog(
+                    context,
+                    widget.controller.selectedImages.length,
+                  );
+                },
+              ),
           ],
         ),
       ],
@@ -116,23 +157,18 @@ class _ImageThumbnailState extends State<ImageThumbnail>
               if (event.kind != PointerDeviceKind.mouse) return;
               if (event.buttons != kPrimaryButton) return;
 
-              final keys = HardwareKeyboard.instance.logicalKeysPressed;
               _mouseDown = true;
               _mouseDragStarted = false;
-              _mouseCtrlPressed =
-                  keys.contains(LogicalKeyboardKey.controlLeft) ||
-                  keys.contains(LogicalKeyboardKey.controlRight) ||
-                  keys.contains(LogicalKeyboardKey.metaLeft) ||
-                  keys.contains(LogicalKeyboardKey.metaRight);
-              _mouseShiftPressed =
-                  keys.contains(LogicalKeyboardKey.shiftLeft) ||
-                  keys.contains(LogicalKeyboardKey.shiftRight);
+              _mouseCtrlPressed = false;
+              _mouseShiftPressed = false;
             },
             onPointerUp: (event) {
               if (event.kind != PointerDeviceKind.mouse) return;
               if (!_mouseDown) return;
 
               if (!_mouseDragStarted) {
+                _mouseCtrlPressed = _isCtrlOrMetaPressed();
+                _mouseShiftPressed = _isShiftPressed();
                 widget.controller.handleImageTapSelection(
                   widget.imagePath,
                   isCtrlPressed: _mouseCtrlPressed,
@@ -224,6 +260,130 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           },
         );
       },
+    );
+  }
+
+  void _ensureSelectionForAction() {
+    if (widget.controller.selectedImages.contains(widget.imagePath)) {
+      return;
+    }
+    widget.controller.selectSingleImage(widget.imagePath);
+  }
+
+  void _showMoveToFolderDialog(BuildContext context) {
+    final rootPath = widget.controller.rootPath.value;
+    if (rootPath == null) return;
+
+    final currentPath = widget.controller.currentPath.value;
+    final targets = <String>[
+      rootPath,
+      ...widget.controller.subdirectories.map((d) => d.path),
+    ].where((p) => p != currentPath).toList();
+
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: Text('choose_target_folder'.tr),
+        body: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 360),
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: targets.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final target = targets[index];
+              final isRoot = target == rootPath;
+              final name = p.basename(target);
+              return _buildTargetFolderItem(
+                context,
+                FTheme.of(context),
+                name,
+                target,
+                isRoot: isRoot,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  if (isRoot) {
+                    widget.controller.moveSelectedToRootFolder();
+                  } else {
+                    widget.controller.moveSelectedToFolder(target);
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        direction: Axis.horizontal,
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(),
+            child: Text('cancel'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTargetFolderItem(
+    BuildContext context,
+    FThemeData theme,
+    String name,
+    String path, {
+    required bool isRoot,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colors.secondary,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isRoot ? FIcons.house : FIcons.folder,
+              color: theme.colors.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: theme.typography.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isRoot) FBadge(child: Text('root'.tr)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    path,
+                    style: theme.typography.xs.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              FIcons.chevronRight,
+              color: theme.colors.mutedForeground,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -443,6 +603,41 @@ class _ImageThumbnailState extends State<ImageThumbnail>
             style: FButtonStyle.destructive(),
             onPress: () {
               widget.controller.deleteImage(widget.imagePath);
+              Navigator.of(context).pop();
+            },
+            child: Text('delete'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteSelectedConfirmDialog(BuildContext context, int count) {
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: Text('delete_selected'.tr),
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FAlert(
+              style: FAlertStyle.destructive(),
+              icon: const Icon(FIcons.triangleAlert),
+              title: Text('action_irreversible'.tr),
+              subtitle: Text('selected_count'.trParams({'count': '$count'})),
+            ),
+          ],
+        ),
+        direction: Axis.horizontal,
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(),
+            child: Text('cancel'.tr),
+          ),
+          FButton(
+            style: FButtonStyle.destructive(),
+            onPress: () {
+              widget.controller.deleteSelectedImages();
               Navigator.of(context).pop();
             },
             child: Text('delete'.tr),

@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as p;
 
-import '../../../core/utils/file_utils.dart';
 import '../controllers/browser_controller.dart';
 import 'folder_item.dart';
 
@@ -42,13 +42,13 @@ class Sidebar extends StatelessWidget {
     final rootPath = controller.rootPath.value;
     if (rootPath == null) return const SizedBox.shrink();
 
-    final folderName = rootPath.split('/').last;
-    final previewImage = getFirstImageInDirectory(rootPath);
+    final folderName = p.basename(rootPath);
 
     return Obx(() {
       final isSelected = controller.currentPath.value == rootPath;
       // Only accept drops when not in root directory
       final canAcceptDrop = !controller.isAtRoot;
+      final previewImage = controller.getFolderPreviewImage(rootPath);
 
       return DragTarget<List<String>>(
         onWillAcceptWithDetails: (details) {

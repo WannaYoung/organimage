@@ -17,6 +17,9 @@ class BrowserController extends GetxController {
   // Subdirectories in ROOT path (always show root's subfolders)
   final RxList<Directory> subdirectories = <Directory>[].obs;
 
+  final RxMap<String, int> folderFileCounts = <String, int>{}.obs;
+  final RxMap<String, String?> folderPreviewImages = <String, String?>{}.obs;
+
   // Image files in current selected folder
   final RxList<FileSystemEntity> imageFiles = <FileSystemEntity>[].obs;
 
@@ -69,9 +72,38 @@ class BrowserController extends GetxController {
       imageFiles.assignAll(newFiles);
       selectedImages.clear();
       _lastSelectedImagePath = null;
+
+      Future.microtask(_refreshFolderMetaCache);
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _refreshFolderMetaCache() {
+    final root = rootPath.value;
+    if (root == null) return;
+
+    final nextCounts = <String, int>{};
+    final nextPreviews = <String, String?>{};
+
+    nextCounts[root] = countFilesInDirectory(root);
+    nextPreviews[root] = getFirstImageInDirectory(root);
+
+    for (final dir in subdirectories) {
+      nextCounts[dir.path] = countFilesInDirectory(dir.path);
+      nextPreviews[dir.path] = getFirstImageInDirectory(dir.path);
+    }
+
+    folderFileCounts.assignAll(nextCounts);
+    folderPreviewImages.assignAll(nextPreviews);
+  }
+
+  int getFolderFileCount(String folderPath) {
+    return folderFileCounts[folderPath] ?? 0;
+  }
+
+  String? getFolderPreviewImage(String folderPath) {
+    return folderPreviewImages[folderPath];
   }
 
   void navigateToFolder(String folderPath) {
@@ -163,6 +195,52 @@ class BrowserController extends GetxController {
     _lastSelectedImagePath = null;
   }
 
+  String _formatErrorMessage(String keyOrMessage) {
+    if (keyOrMessage.startsWith('error_')) {
+      return keyOrMessage.tr;
+    }
+    return keyOrMessage;
+  }
+
+  void _clearImageCache() {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+  }
+
+  Future<void> importExternalImagesToCurrentFolder(List<String> paths) async {
+    final folderPath = currentPath.value;
+    if (folderPath == null) return;
+    if (paths.isEmpty) return;
+
+    final imagePaths = <String>[];
+    for (final path in paths) {
+      if (File(path).existsSync() && isImageFile(path)) {
+        imagePaths.add(path);
+      }
+    }
+    if (imagePaths.isEmpty) return;
+
+    isLoading.value = true;
+    try {
+      final (success, result) = importExternalImagesToFolder(
+        imagePaths,
+        folderPath,
+      );
+      if (!success) {
+        showErrorToast(_formatErrorMessage(result));
+        return;
+      }
+
+      loadCurrentDirectory();
+      _clearImageCache();
+      showSuccessToast(
+        'imported_count'.trParams({'count': '${imagePaths.length}'}),
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   void selectAllImages() {
     final all = imageFiles.map((e) => e.path).toList();
     selectedImages
@@ -206,10 +284,15 @@ class BrowserController extends GetxController {
           successCount++;
         } else {
           failCount++;
-          showErrorToast(result);
+          showErrorToast(_formatErrorMessage(result));
         }
       }
+
+      if (!isAtRoot && currentPath.value != null) {
+        renumberFilesInFolder(currentPath.value!);
+      }
       loadCurrentDirectory();
+      _clearImageCache();
       if (successCount > 0 && failCount == 0) {
         showSuccessToast('moved_count'.trParams({'count': '$successCount'}));
       }
@@ -232,10 +315,47 @@ class BrowserController extends GetxController {
         if (success) {
           selectedImages.remove(imagePath);
         } else {
-          showErrorToast(result);
+          showErrorToast(_formatErrorMessage(result));
         }
       }
+
+      if (!isAtRoot && currentPath.value != null) {
+        renumberFilesInFolder(currentPath.value!);
+      }
       loadCurrentDirectory();
+      _clearImageCache();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> deleteSelectedImages() async {
+    if (selectedImages.isEmpty) return;
+
+    isLoading.value = true;
+    int successCount = 0;
+    int failCount = 0;
+    try {
+      for (final imagePath in selectedImages.toList()) {
+        final (success, result) = deleteFile(imagePath);
+        if (success) {
+          selectedImages.remove(imagePath);
+          successCount++;
+        } else {
+          failCount++;
+          showErrorToast(_formatErrorMessage(result));
+        }
+      }
+
+      if (!isAtRoot && currentPath.value != null) {
+        renumberFilesInFolder(currentPath.value!);
+      }
+      loadCurrentDirectory();
+      _clearImageCache();
+
+      if (successCount > 0 && failCount == 0) {
+        showSuccessToast('deleted_count'.trParams({'count': '$successCount'}));
+      }
     } finally {
       isLoading.value = false;
     }
@@ -421,9 +541,10 @@ class BrowserController extends GetxController {
         renumberFilesInFolder(currentPath.value!);
       }
       loadCurrentDirectory();
+      _clearImageCache();
       showSuccessToast('image_deleted'.tr);
     } else {
-      showErrorToast(result);
+      showErrorToast(_formatErrorMessage(result));
     }
   }
 
@@ -432,9 +553,10 @@ class BrowserController extends GetxController {
     final (success, result) = deleteFolder(folderPath);
     if (success) {
       loadCurrentDirectory();
+      _clearImageCache();
       showSuccessToast('folder_deleted'.tr);
     } else {
-      showErrorToast(result);
+      showErrorToast(_formatErrorMessage(result));
     }
   }
 
@@ -450,6 +572,7 @@ class BrowserController extends GetxController {
         currentPath.value = newPath;
       }
       loadCurrentDirectory();
+      _clearImageCache();
       showSuccessToast('folder_renamed'.tr);
     } else {
       showErrorToast(newPath);
