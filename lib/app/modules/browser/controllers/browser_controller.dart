@@ -178,10 +178,15 @@ class BrowserController extends GetxController {
   }
 
   // Delete a single image
+  // If in a subfolder, renumber remaining files after deletion
   void deleteImage(String imagePath) {
     final (success, result) = deleteFile(imagePath);
     if (success) {
       selectedImages.remove(imagePath);
+      // Renumber files if we're in a subfolder (not root)
+      if (!isAtRoot && currentPath.value != null) {
+        renumberFilesInFolder(currentPath.value!);
+      }
       loadCurrentDirectory();
       showSuccessToast('image_deleted'.tr);
     } else {
@@ -202,12 +207,19 @@ class BrowserController extends GetxController {
 
   // Rename folder and all its contents
   void renameFolderWithContents(String folderPath, String newName) {
-    final (success, result) = renameFolderWithContentsUtil(folderPath, newName);
+    final (success, newPath) = renameFolderWithContentsUtil(
+      folderPath,
+      newName,
+    );
     if (success) {
+      // Update currentPath if we renamed the currently viewed folder
+      if (currentPath.value == folderPath) {
+        currentPath.value = newPath;
+      }
       loadCurrentDirectory();
       showSuccessToast('folder_renamed'.tr);
     } else {
-      showErrorToast(result);
+      showErrorToast(newPath);
     }
   }
 }

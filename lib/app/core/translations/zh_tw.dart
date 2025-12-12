@@ -90,6 +90,11 @@ const Map<String, String> zhTW = {
   'image_deleted': '刪除成功',
   'moved_count': '已移動 @count 張圖片',
 
+  // Tooltip
+  'file_name': '檔案名',
+  'file_size': '檔案大小',
+  'modified_date': '修改日期',
+
   // Error messages
   'error_source_not_exist': '來源檔案不存在',
   'error_target_not_exist': '目標資料夾不存在',

@@ -71,18 +71,10 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       popoverController: _popoverController,
       menuAnchor: Alignment.topLeft,
       childAnchor: Alignment.bottomLeft,
-      style: (style) => style.copyWith(maxWidth: 160),
+      style: (style) => style.copyWith(maxWidth: 180),
       menu: [
         FItemGroup(
           children: [
-            FItem(
-              prefix: const Icon(FIcons.pencil),
-              title: Text('rename'.tr),
-              onPress: () {
-                _popoverController.hide();
-                _showRenameDialog(context, fileName);
-              },
-            ),
             FItem(
               prefix: const Icon(FIcons.folderOpen),
               title: Text('show_in_finder'.tr),
@@ -107,6 +99,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       ],
       builder: (context, controller, child) {
         final content = FTooltip(
+          hoverEnterDuration: const Duration(milliseconds: 200),
           tipBuilder: (context, _) => _buildTooltipContent(),
           child: GestureDetector(
             onTap: () =>
@@ -138,6 +131,14 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   }
 
   Widget _buildTooltipContent() {
+    final theme = FTheme.of(context);
+    final labelStyle = theme.typography.sm.copyWith(
+      color: theme.colors.mutedForeground,
+    );
+    final valueStyle = theme.typography.sm.copyWith(
+      color: theme.colors.foreground,
+    );
+
     try {
       final file = File(widget.imagePath);
       final stat = file.statSync();
@@ -145,18 +146,37 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       final modified = stat.modified;
       final dateStr =
           '${modified.year}-${modified.month.toString().padLeft(2, '0')}-${modified.day.toString().padLeft(2, '0')}';
+      final fileName = p.basename(widget.imagePath);
 
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(p.basename(widget.imagePath)),
-          Text('$size  •  $dateStr'),
+          _buildTooltipRow(labelStyle, valueStyle, 'file_name'.tr, fileName),
+          const SizedBox(height: 4),
+          _buildTooltipRow(labelStyle, valueStyle, 'file_size'.tr, size),
+          const SizedBox(height: 4),
+          _buildTooltipRow(labelStyle, valueStyle, 'modified_date'.tr, dateStr),
         ],
       );
     } catch (e) {
-      return Text(p.basename(widget.imagePath));
+      return Text(p.basename(widget.imagePath), style: valueStyle);
     }
+  }
+
+  Widget _buildTooltipRow(
+    TextStyle labelStyle,
+    TextStyle valueStyle,
+    String label,
+    String value,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$label: ', style: labelStyle),
+        Text(value, style: valueStyle),
+      ],
+    );
   }
 
   void _openImagePreview(BuildContext context) {
@@ -294,51 +314,6 @@ class _ImageThumbnailState extends State<ImageThumbnail>
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showRenameDialog(BuildContext context, String currentName) {
-    final nameWithoutExt = p.basenameWithoutExtension(widget.imagePath);
-    final ext = p.extension(widget.imagePath);
-    final textController = TextEditingController(text: nameWithoutExt);
-    final theme = FTheme.of(context);
-
-    showFDialog(
-      context: context,
-      builder: (context, style, animation) => FDialog(
-        title: Text('rename_image'.tr),
-        body: Row(
-          children: [
-            Expanded(
-              child: FTextField(
-                controller: textController,
-                autofocus: true,
-                hint: 'enter_new_name'.tr,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(ext, style: theme.typography.base),
-          ],
-        ),
-        direction: Axis.horizontal,
-        actions: [
-          FButton(
-            onPress: () => Navigator.of(context).pop(),
-            child: Text('cancel'.tr),
-          ),
-          FButton(
-            onPress: () {
-              final newName = '${textController.text.trim()}$ext';
-              if (textController.text.trim().isNotEmpty &&
-                  newName != currentName) {
-                widget.controller.renameImage(widget.imagePath, newName);
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('confirm'.tr),
-          ),
-        ],
       ),
     );
   }

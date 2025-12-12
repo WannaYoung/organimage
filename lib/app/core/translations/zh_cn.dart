@@ -90,6 +90,11 @@ const Map<String, String> zhCN = {
   'image_deleted': '删除成功',
   'moved_count': '已移动 @count 张图片',
 
+  // Tooltip
+  'file_name': '文件名',
+  'file_size': '文件大小',
+  'modified_date': '修改日期',
+
   // Error messages
   'error_source_not_exist': '源文件不存在',
   'error_target_not_exist': '目标文件夹不存在',

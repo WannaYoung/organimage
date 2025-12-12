@@ -87,7 +87,7 @@ class _FolderItemState extends State<FolderItem>
           popoverController: _popoverController,
           menuAnchor: Alignment.topLeft,
           childAnchor: Alignment.bottomLeft,
-          style: (style) => style.copyWith(maxWidth: 160),
+          style: (style) => style.copyWith(maxWidth: 180),
           menu: [
             FItemGroup(
               children: [

@@ -91,6 +91,11 @@ const Map<String, String> enUS = {
   'image_deleted': 'Image deleted successfully',
   'moved_count': '@count images moved',
 
+  // Tooltip
+  'file_name': 'File name',
+  'file_size': 'File size',
+  'modified_date': 'Modified',
+
   // Error messages
   'error_source_not_exist': 'Source file does not exist',
   'error_target_not_exist': 'Target folder does not exist',

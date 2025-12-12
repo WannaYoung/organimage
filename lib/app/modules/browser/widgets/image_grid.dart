@@ -79,6 +79,7 @@ class _ImageGridState extends State<ImageGrid> {
           Obx(() {
             if (controller.selectedImages.isNotEmpty) {
               return FBadge(
+                style: FBadgeStyle.primary(),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -87,10 +88,14 @@ class _ImageGridState extends State<ImageGrid> {
                         'count': '${controller.selectedImages.length}',
                       }),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     GestureDetector(
                       onTap: controller.clearSelection,
-                      child: const Icon(FIcons.x, size: 14),
+                      child: Icon(
+                        FIcons.x,
+                        size: 14,
+                        color: theme.colors.primaryForeground,
+                      ),
                     ),
                   ],
                 ),
@@ -104,10 +109,15 @@ class _ImageGridState extends State<ImageGrid> {
           // Image count
           Obx(
             () => FBadge(
+              style: FBadgeStyle.secondary(),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(FIcons.image, size: 14),
+                  Icon(
+                    FIcons.image,
+                    size: 14,
+                    color: theme.colors.secondaryForeground,
+                  ),
                   const SizedBox(width: 4),
                   Text('${controller.imageFiles.length}'),
                 ],
@@ -115,24 +125,44 @@ class _ImageGridState extends State<ImageGrid> {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
 
-          // Thumbnail size slider
-          Icon(FIcons.minimize2, size: 14, color: theme.colors.mutedForeground),
-          SizedBox(
-            width: 120,
-            child: FSlider(
-              controller: _sliderController,
-              onChange: (selection) {
-                final value =
-                    minThumbnailSize +
-                    selection.offset.max *
-                        (maxThumbnailSize - minThumbnailSize);
-                controller.setThumbnailSize(value);
-              },
+          // Thumbnail size slider with icons
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.colors.secondary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  FIcons.minimize2,
+                  size: 14,
+                  color: theme.colors.mutedForeground,
+                ),
+                SizedBox(
+                  width: 100,
+                  child: FSlider(
+                    controller: _sliderController,
+                    onChange: (selection) {
+                      final value =
+                          minThumbnailSize +
+                          selection.offset.max *
+                              (maxThumbnailSize - minThumbnailSize);
+                      controller.setThumbnailSize(value);
+                    },
+                  ),
+                ),
+                Icon(
+                  FIcons.maximize2,
+                  size: 14,
+                  color: theme.colors.mutedForeground,
+                ),
+              ],
             ),
           ),
-          Icon(FIcons.maximize2, size: 14, color: theme.colors.mutedForeground),
 
           const SizedBox(width: 8),
 
@@ -140,8 +170,13 @@ class _ImageGridState extends State<ImageGrid> {
           FTooltip(
             tipBuilder: (context, _) => Text('refresh'.tr),
             child: FButton(
+              style: FButtonStyle.outline(),
               onPress: controller.loadCurrentDirectory,
-              child: const Icon(FIcons.refreshCw, size: 18),
+              child: Icon(
+                FIcons.refreshCw,
+                size: 16,
+                color: theme.colors.foreground,
+              ),
             ),
           ),
         ],

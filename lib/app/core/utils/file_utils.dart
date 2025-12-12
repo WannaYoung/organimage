@@ -301,6 +301,55 @@ String formatFileSize(int size) {
   }
 }
 
+/// Re-number all image files in a folder with sequential numbering
+/// Returns (success, messageKey)
+(bool, String) renumberFilesInFolder(String folderPath) {
+  final dir = Directory(folderPath);
+  if (!dir.existsSync()) {
+    return (false, 'error_folder_not_exist');
+  }
+
+  final folderName = p.basename(folderPath);
+
+  try {
+    // Get all image files and sort them
+    final imageFiles = <String>[];
+    for (final entity in dir.listSync()) {
+      if (entity is File && isImageFile(entity.path)) {
+        imageFiles.add(entity.path);
+      }
+    }
+    if (imageFiles.isEmpty) {
+      return (true, 'success');
+    }
+    imageFiles.sort((a, b) => p.basename(a).compareTo(p.basename(b)));
+
+    // First pass: rename to temp names to avoid conflicts
+    final tempMappings = <(String, String)>[]; // (tempPath, ext)
+    for (var i = 0; i < imageFiles.length; i++) {
+      final filePath = imageFiles[i];
+      final ext = p.extension(filePath);
+      final tempName = '__temp_renumber_${i.toString().padLeft(5, '0')}$ext';
+      final tempPath = p.join(folderPath, tempName);
+      File(filePath).renameSync(tempPath);
+      tempMappings.add((tempPath, ext));
+    }
+
+    // Second pass: rename to final names
+    for (var i = 0; i < tempMappings.length; i++) {
+      final (tempPath, ext) = tempMappings[i];
+      final newFileName =
+          '$folderName (${(i + 1).toString().padLeft(3, '0')})$ext';
+      final newFilePath = p.join(folderPath, newFileName);
+      File(tempPath).renameSync(newFilePath);
+    }
+
+    return (true, 'success');
+  } catch (e) {
+    return (false, e.toString());
+  }
+}
+
 /// Rename folder and all image files inside with sequential numbering
 /// Returns (success, newFolderPath or errorKey)
 (bool, String) renameFolderWithContentsUtil(String folderPath, String newName) {

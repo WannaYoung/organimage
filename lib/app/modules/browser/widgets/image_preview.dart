@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
@@ -151,9 +152,9 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
           }
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: Color(0x00000000)),
+        child: Stack(
           children: [
             // Image gallery with mouse wheel zoom support
             Listener(
@@ -191,14 +192,8 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                     ),
                   );
                 },
-                loadingBuilder: (context, event) => Center(
-                  child: CircularProgressIndicator(
-                    value: event == null
-                        ? null
-                        : event.cumulativeBytesLoaded /
-                              (event.expectedTotalBytes ?? 1),
-                  ),
-                ),
+                loadingBuilder: (context, event) =>
+                    Center(child: const FProgress()),
                 backgroundDecoration: const BoxDecoration(
                   color: Colors.transparent,
                 ),
@@ -247,9 +242,10 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
+                      FButton(
+                        style: FButtonStyle.ghost(),
+                        onPress: () => Navigator.of(context).pop(),
+                        child: const Icon(FIcons.x, color: Color(0xFFFFFFFF)),
                       ),
                     ],
                   ),
@@ -265,7 +261,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                 bottom: 0,
                 child: Center(
                   child: _NavigationButton(
-                    icon: Icons.chevron_left,
+                    icon: FIcons.chevronLeft,
                     onPressed: _goToPrevious,
                   ),
                 ),
@@ -280,7 +276,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                 bottom: 0,
                 child: Center(
                   child: _NavigationButton(
-                    icon: Icons.chevron_right,
+                    icon: FIcons.chevronRight,
                     onPressed: _goToNext,
                   ),
                 ),
@@ -309,13 +305,16 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Zoom out button
-                      IconButton(
-                        icon: const Icon(
-                          Icons.remove_circle_outline,
-                          color: Colors.white70,
+                      FTooltip(
+                        tipBuilder: (context, _) => const Text('-'),
+                        child: FButton(
+                          style: FButtonStyle.ghost(),
+                          onPress: _zoomOut,
+                          child: const Icon(
+                            FIcons.circleMinus,
+                            color: Color(0xB3FFFFFF),
+                          ),
                         ),
-                        onPressed: _zoomOut,
-                        tooltip: '-',
                       ),
                       // Zoom percentage
                       Container(
@@ -330,27 +329,33 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                         ),
                       ),
                       // Zoom in button
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle_outline,
-                          color: Colors.white70,
+                      FTooltip(
+                        tipBuilder: (context, _) => const Text('+'),
+                        child: FButton(
+                          style: FButtonStyle.ghost(),
+                          onPress: _zoomIn,
+                          child: const Icon(
+                            FIcons.circlePlus,
+                            color: Color(0xB3FFFFFF),
+                          ),
                         ),
-                        onPressed: _zoomIn,
-                        tooltip: '+',
                       ),
                       const SizedBox(width: 16),
                       // Reset button
-                      IconButton(
-                        icon: const Icon(
-                          Icons.fit_screen,
-                          color: Colors.white70,
+                      FTooltip(
+                        tipBuilder: (context, _) => Text('reset'.tr),
+                        child: FButton(
+                          style: FButtonStyle.ghost(),
+                          onPress: _resetZoom,
+                          child: const Icon(
+                            FIcons.maximize,
+                            color: Color(0xB3FFFFFF),
+                          ),
                         ),
-                        onPressed: _resetZoom,
-                        tooltip: 'reset'.tr,
                       ),
                       const SizedBox(width: 24),
                       // Hints
-                      _HintChip(icon: Icons.mouse, label: 'scroll_zoom'.tr),
+                      _HintChip(icon: FIcons.mouse, label: 'scroll_zoom'.tr),
                     ],
                   ),
                 ),
@@ -371,16 +376,15 @@ class _NavigationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black38,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Icon(icon, color: Colors.white, size: 32),
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0x61000000),
+          borderRadius: BorderRadius.circular(24),
         ),
+        child: Icon(icon, color: const Color(0xFFFFFFFF), size: 32),
       ),
     );
   }
