@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/painting.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
@@ -22,11 +23,20 @@ class BrowserController extends GetxController {
   // Selected image files
   final RxList<String> selectedImages = <String>[].obs;
 
+  String? _lastSelectedImagePath;
+
   // Thumbnail size
   final RxDouble thumbnailSize = 120.0.obs;
 
   // Loading state
   final RxBool isLoading = false.obs;
+
+  final RxBool isReordering = false.obs;
+
+  String? _reorderDraggingPath;
+  List<String> _reorderOriginalOrder = <String>[];
+  String? _reorderLastTargetPath;
+  bool _reorderCommitted = false;
 
   @override
   void onInit() {
@@ -58,6 +68,7 @@ class BrowserController extends GetxController {
       final newFiles = getImageFiles(currentPath.value!);
       imageFiles.assignAll(newFiles);
       selectedImages.clear();
+      _lastSelectedImagePath = null;
     } finally {
       isLoading.value = false;
     }
@@ -78,14 +89,111 @@ class BrowserController extends GetxController {
     } else {
       selectedImages.add(imagePath);
     }
+
+    _lastSelectedImagePath = imagePath;
+  }
+
+  void selectSingleImage(String imagePath) {
+    selectedImages
+      ..clear()
+      ..add(imagePath);
+    _lastSelectedImagePath = imagePath;
+  }
+
+  void selectRangeTo(String imagePath, {required bool additive}) {
+    final lastPath = _lastSelectedImagePath;
+    final paths = imageFiles.map((e) => e.path).toList();
+    if (paths.isEmpty) return;
+
+    final endIndex = paths.indexOf(imagePath);
+    if (endIndex < 0) {
+      selectSingleImage(imagePath);
+      return;
+    }
+
+    if (lastPath == null) {
+      selectSingleImage(imagePath);
+      return;
+    }
+
+    final startIndex = paths.indexOf(lastPath);
+    if (startIndex < 0) {
+      selectSingleImage(imagePath);
+      return;
+    }
+
+    final from = startIndex < endIndex ? startIndex : endIndex;
+    final to = startIndex < endIndex ? endIndex : startIndex;
+    final range = paths.sublist(from, to + 1);
+
+    if (!additive) {
+      selectedImages
+        ..clear()
+        ..addAll(range);
+    } else {
+      final union = <String>{...selectedImages, ...range}.toList();
+      selectedImages
+        ..clear()
+        ..addAll(union);
+    }
+
+    _lastSelectedImagePath = imagePath;
+  }
+
+  void handleImageTapSelection(
+    String imagePath, {
+    required bool isCtrlPressed,
+    required bool isShiftPressed,
+  }) {
+    if (isShiftPressed) {
+      selectRangeTo(imagePath, additive: isCtrlPressed);
+      return;
+    }
+
+    if (isCtrlPressed) {
+      toggleImageSelection(imagePath);
+      return;
+    }
+
+    selectSingleImage(imagePath);
   }
 
   void clearSelection() {
     selectedImages.clear();
+    _lastSelectedImagePath = null;
+  }
+
+  void selectAllImages() {
+    final all = imageFiles.map((e) => e.path).toList();
+    selectedImages
+      ..clear()
+      ..addAll(all);
+    _lastSelectedImagePath = all.isNotEmpty ? all.last : null;
+  }
+
+  void applyDragSelection(
+    List<String> paths, {
+    required bool additive,
+    List<String>? baseSelection,
+  }) {
+    final base = baseSelection ?? <String>[];
+    final next = additive ? <String>{...base, ...paths}.toList() : paths;
+    selectedImages
+      ..clear()
+      ..addAll(next);
+
+    if (paths.isNotEmpty) {
+      _lastSelectedImagePath = paths.last;
+    }
   }
 
   Future<void> moveSelectedToFolder(String folderPath) async {
     if (selectedImages.isEmpty) return;
+
+    if (currentPath.value == folderPath) {
+      showInfoToast('error_same_folder'.tr);
+      return;
+    }
 
     isLoading.value = true;
     int successCount = 0;
@@ -156,6 +264,131 @@ class BrowserController extends GetxController {
 
   bool get isAtRoot {
     return currentPath.value == rootPath.value;
+  }
+
+  bool get canReorderInCurrentFolder {
+    return !isAtRoot && currentPath.value != null;
+  }
+
+  void startReorder(String imagePath) {
+    if (!canReorderInCurrentFolder) return;
+    _reorderDraggingPath = imagePath;
+    _reorderOriginalOrder = imageFiles.map((e) => e.path).toList();
+    _reorderLastTargetPath = null;
+    _reorderCommitted = false;
+    isReordering.value = true;
+  }
+
+  void previewReorderTo(String targetImagePath) {
+    if (!isReordering.value) return;
+    final draggingPath = _reorderDraggingPath;
+    if (draggingPath == null) return;
+    if (draggingPath == targetImagePath) return;
+    if (_reorderLastTargetPath == targetImagePath) return;
+
+    final paths = imageFiles.map((e) => e.path).toList();
+    if (paths.toSet().length != paths.length) {
+      final unique = <String>[];
+      for (final path in paths) {
+        if (!unique.contains(path)) {
+          unique.add(path);
+        }
+      }
+      imageFiles.assignAll(unique.map((p) => File(p)).toList());
+      return;
+    }
+    final fromIndex = paths.indexOf(draggingPath);
+    final toIndex = paths.indexOf(targetImagePath);
+    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex == toIndex) return;
+
+    paths.removeAt(fromIndex);
+    paths.insert(toIndex, draggingPath);
+    _reorderLastTargetPath = targetImagePath;
+    imageFiles.assignAll(paths.map((p) => File(p)).toList());
+  }
+
+  void cancelReorderPreview() {
+    if (!isReordering.value) return;
+    if (_reorderCommitted) return;
+    if (_reorderOriginalOrder.isNotEmpty) {
+      imageFiles.assignAll(_reorderOriginalOrder.map((p) => File(p)).toList());
+    }
+    _reorderDraggingPath = null;
+    _reorderOriginalOrder = <String>[];
+    _reorderLastTargetPath = null;
+    isReordering.value = false;
+  }
+
+  void commitReorderAndRenumber() {
+    if (!isReordering.value) return;
+    if (!canReorderInCurrentFolder) {
+      cancelReorderPreview();
+      return;
+    }
+
+    final folderPath = currentPath.value;
+    if (folderPath == null) {
+      cancelReorderPreview();
+      return;
+    }
+
+    final orderedPaths = imageFiles.map((e) => e.path).toList();
+    if (_reorderOriginalOrder.length == orderedPaths.length) {
+      var same = true;
+      for (var i = 0; i < orderedPaths.length; i++) {
+        if (_reorderOriginalOrder[i] != orderedPaths[i]) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        _reorderDraggingPath = null;
+        _reorderOriginalOrder = <String>[];
+        isReordering.value = false;
+        return;
+      }
+    }
+
+    _reorderCommitted = true;
+    isReordering.value = false;
+    try {
+      isLoading.value = true;
+      final (success, result) = renumberFilesInFolderByOrderUtil(
+        folderPath,
+        orderedPaths,
+      );
+      if (!success) {
+        showErrorToast(result);
+      }
+      loadCurrentDirectory();
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    } finally {
+      _reorderDraggingPath = null;
+      _reorderOriginalOrder = <String>[];
+      _reorderLastTargetPath = null;
+      isLoading.value = false;
+    }
+  }
+
+  void handleReorderDragEnd({required bool wasAccepted}) {
+    if (_reorderCommitted) return;
+    if (!isReordering.value) return;
+    if (wasAccepted) {
+      endReorderAfterAcceptedDrop();
+    } else {
+      cancelReorderPreview();
+    }
+  }
+
+  void endReorderAfterAcceptedDrop() {
+    if (!isReordering.value) return;
+    if (_reorderCommitted) return;
+    _reorderDraggingPath = null;
+    _reorderOriginalOrder = <String>[];
+    _reorderLastTargetPath = null;
+    isReordering.value = false;
   }
 
   // Open file or folder in system file manager

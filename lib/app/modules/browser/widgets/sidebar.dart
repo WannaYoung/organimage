@@ -56,6 +56,7 @@ class Sidebar extends StatelessWidget {
           return canAcceptDrop && details.data.isNotEmpty;
         },
         onAcceptWithDetails: (details) {
+          controller.endReorderAfterAcceptedDrop();
           controller.moveSelectedToRootFolder();
         },
         builder: (context, candidateData, rejectedData) {

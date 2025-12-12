@@ -99,6 +99,7 @@ const Map<String, String> zhTW = {
   'error_source_not_exist': '來源檔案不存在',
   'error_target_not_exist': '目標資料夾不存在',
   'error_file_exists': '檔案已存在',
+  'error_same_folder': '圖片已在目前資料夾',
   'error_file_not_exist': '檔案不存在',
   'error_folder_exists': '資料夾已存在',
   'error_folder_not_exist': '資料夾不存在',

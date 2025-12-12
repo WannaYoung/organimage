@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
@@ -19,6 +21,16 @@ class ImageGrid extends StatefulWidget {
 class _ImageGridState extends State<ImageGrid> {
   late final FContinuousSliderController _sliderController;
   final ScrollController _scrollController = ScrollController();
+
+  final FocusNode _focusNode = FocusNode();
+  final GlobalKey _stackKey = GlobalKey();
+  final Map<String, GlobalKey> _itemKeys = <String, GlobalKey>{};
+
+  bool _isDragSelecting = false;
+  Offset? _dragStartLocal;
+  Offset? _dragCurrentLocal;
+  bool _dragAdditive = false;
+  List<String> _dragBaseSelection = <String>[];
 
   BrowserController get controller => widget.controller;
 
@@ -50,17 +62,39 @@ class _ImageGridState extends State<ImageGrid> {
   void dispose() {
     _sliderController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildToolbar(context),
-        const FDivider(),
-        Expanded(child: _buildContent(context)),
-      ],
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyA, control: true):
+            SelectAllIntent(),
+        SingleActivator(LogicalKeyboardKey.keyA, meta: true): SelectAllIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          SelectAllIntent: CallbackAction<SelectAllIntent>(
+            onInvoke: (intent) {
+              controller.selectAllImages();
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          child: Column(
+            children: [
+              _buildToolbar(context),
+              const FDivider(),
+              Expanded(child: _buildContent(context)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -226,10 +260,14 @@ class _ImageGridState extends State<ImageGrid> {
 
   Widget _buildImageGrid(BuildContext context) {
     return Obx(() {
+      final theme = FTheme.of(context);
       final size = controller.thumbnailSize.value;
       final files = controller.imageFiles.toList();
 
-      return GridView.builder(
+      final currentPaths = files.map((e) => e.path).toSet();
+      _itemKeys.removeWhere((key, value) => !currentPaths.contains(key));
+
+      final grid = GridView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
@@ -241,16 +279,205 @@ class _ImageGridState extends State<ImageGrid> {
         itemCount: files.length,
         itemBuilder: (context, index) {
           final file = files[index];
-          return ImageThumbnail(
-            key: ValueKey(file.path),
-            imagePath: file.path,
-            size: size,
-            controller: controller,
-            enableDrag: true,
+          final itemKey = _itemKeys.putIfAbsent(file.path, () => GlobalKey());
+          return Container(
+            key: itemKey,
+            child: ImageThumbnail(
+              key: ValueKey(file.path),
+              imagePath: file.path,
+              size: size,
+              controller: controller,
+              enableDrag: true,
+            ),
           );
         },
       );
+
+      final selectionRect = _getSelectionRect();
+      final selectionOverlay = selectionRect == null
+          ? const SizedBox.shrink()
+          : Positioned(
+              left: selectionRect.left,
+              top: selectionRect.top,
+              width: selectionRect.width,
+              height: selectionRect.height,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.primary.withValues(alpha: 0.12),
+                    border: Border.all(color: theme.colors.primary, width: 1.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            );
+
+      final gridWithDragSelect = Stack(
+        key: _stackKey,
+        children: [
+          grid,
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (event) {
+                if (event.kind != PointerDeviceKind.mouse) return;
+                if (event.buttons != kPrimaryButton) return;
+
+                if (!_focusNode.hasFocus) {
+                  _focusNode.requestFocus();
+                }
+
+                if (_isPointerOnAnyItem(event.position)) return;
+
+                final keys = HardwareKeyboard.instance.logicalKeysPressed;
+                final isCtrl =
+                    keys.contains(LogicalKeyboardKey.controlLeft) ||
+                    keys.contains(LogicalKeyboardKey.controlRight) ||
+                    keys.contains(LogicalKeyboardKey.metaLeft) ||
+                    keys.contains(LogicalKeyboardKey.metaRight);
+
+                final stackBox =
+                    _stackKey.currentContext?.findRenderObject() as RenderBox?;
+                if (stackBox == null) return;
+                final local = stackBox.globalToLocal(event.position);
+
+                setState(() {
+                  _isDragSelecting = true;
+                  _dragAdditive = isCtrl;
+                  _dragBaseSelection = controller.selectedImages.toList();
+                  _dragStartLocal = local;
+                  _dragCurrentLocal = local;
+                });
+              },
+              onPointerMove: (event) {
+                if (!_isDragSelecting) return;
+                final stackBox =
+                    _stackKey.currentContext?.findRenderObject() as RenderBox?;
+                if (stackBox == null) return;
+                final local = stackBox.globalToLocal(event.position);
+
+                setState(() {
+                  _dragCurrentLocal = local;
+                });
+
+                final rect = _getSelectionRect();
+                if (rect == null) return;
+
+                final selected = _getPathsIntersectingRect(rect);
+                controller.applyDragSelection(
+                  selected,
+                  additive: _dragAdditive,
+                  baseSelection: _dragBaseSelection,
+                );
+              },
+              onPointerUp: (event) {
+                if (!_isDragSelecting) return;
+                setState(() {
+                  _isDragSelecting = false;
+                  _dragStartLocal = null;
+                  _dragCurrentLocal = null;
+                  _dragAdditive = false;
+                  _dragBaseSelection = <String>[];
+                });
+              },
+              onPointerCancel: (event) {
+                if (!_isDragSelecting) return;
+                setState(() {
+                  _isDragSelecting = false;
+                  _dragStartLocal = null;
+                  _dragCurrentLocal = null;
+                  _dragAdditive = false;
+                  _dragBaseSelection = <String>[];
+                });
+              },
+              child: const SizedBox.expand(),
+            ),
+          ),
+          selectionOverlay,
+        ],
+      );
+
+      if (!controller.canReorderInCurrentFolder) {
+        return gridWithDragSelect;
+      }
+
+      return DragTarget<List<String>>(
+        onWillAcceptWithDetails: (details) {
+          return controller.isReordering.value &&
+              controller.selectedImages.length == 1;
+        },
+        onAcceptWithDetails: (details) {
+          controller.commitReorderAndRenumber();
+        },
+        builder: (context, candidateData, rejectedData) {
+          return gridWithDragSelect;
+        },
+      );
     });
+  }
+
+  Rect? _getSelectionRect() {
+    final start = _dragStartLocal;
+    final current = _dragCurrentLocal;
+    if (!_isDragSelecting || start == null || current == null) return null;
+
+    final left = start.dx < current.dx ? start.dx : current.dx;
+    final top = start.dy < current.dy ? start.dy : current.dy;
+    final right = start.dx > current.dx ? start.dx : current.dx;
+    final bottom = start.dy > current.dy ? start.dy : current.dy;
+
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  bool _isPointerOnAnyItem(Offset globalPosition) {
+    final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (stackBox == null) return false;
+    final local = stackBox.globalToLocal(globalPosition);
+
+    for (final entry in _itemKeys.entries) {
+      final itemBox =
+          entry.value.currentContext?.findRenderObject() as RenderBox?;
+      if (itemBox == null || !itemBox.hasSize) continue;
+      final topLeft = stackBox.globalToLocal(
+        itemBox.localToGlobal(Offset.zero),
+      );
+      final rect = Rect.fromLTWH(
+        topLeft.dx,
+        topLeft.dy,
+        itemBox.size.width,
+        itemBox.size.height,
+      );
+      if (rect.contains(local)) return true;
+    }
+
+    return false;
+  }
+
+  List<String> _getPathsIntersectingRect(Rect selectionRect) {
+    final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (stackBox == null) return <String>[];
+
+    final selected = <String>[];
+    for (final entry in _itemKeys.entries) {
+      final itemBox =
+          entry.value.currentContext?.findRenderObject() as RenderBox?;
+      if (itemBox == null || !itemBox.hasSize) continue;
+      final topLeft = stackBox.globalToLocal(
+        itemBox.localToGlobal(Offset.zero),
+      );
+      final rect = Rect.fromLTWH(
+        topLeft.dx,
+        topLeft.dy,
+        itemBox.size.width,
+        itemBox.size.height,
+      );
+
+      if (rect.overlaps(selectionRect)) {
+        selected.add(entry.key);
+      }
+    }
+
+    return selected;
   }
 
   Widget _buildBreadcrumb(BuildContext context) {
@@ -304,4 +531,8 @@ class _ImageGridState extends State<ImageGrid> {
       child: FBreadcrumb(children: items),
     );
   }
+}
+
+class SelectAllIntent extends Intent {
+  const SelectAllIntent();
 }

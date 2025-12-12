@@ -78,6 +78,7 @@ class _FolderItemState extends State<FolderItem>
       },
       onAcceptWithDetails: (details) {
         // Use the dragged data directly, which now includes auto-selected images
+        widget.controller.endReorderAfterAcceptedDrop();
         widget.controller.moveSelectedToFolder(widget.folder.path);
       },
       builder: (context, candidateData, rejectedData) {

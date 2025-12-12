@@ -100,6 +100,7 @@ const Map<String, String> enUS = {
   'error_source_not_exist': 'Source file does not exist',
   'error_target_not_exist': 'Target folder does not exist',
   'error_file_exists': 'File already exists',
+  'error_same_folder': 'The image is already in this folder',
   'error_file_not_exist': 'File does not exist',
   'error_folder_exists': 'Folder already exists',
   'error_folder_not_exist': 'Folder does not exist',

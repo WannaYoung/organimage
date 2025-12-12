@@ -116,16 +116,88 @@ int getNextFileNumber(String folderPath, String folderName) {
   }
 
   final fileName = p.basename(filePath);
-  final newPath = p.join(folderPath, fileName);
+  var newPath = p.join(folderPath, fileName);
 
-  // Check if file already exists
   if (File(newPath).existsSync()) {
-    return (false, 'error_file_exists');
+    final baseName = p.basenameWithoutExtension(fileName);
+    final ext = p.extension(fileName);
+    var counter = 1;
+    while (counter <= 9999) {
+      final candidateName = '$baseName ($counter)$ext';
+      final candidatePath = p.join(folderPath, candidateName);
+      if (!File(candidatePath).existsSync()) {
+        newPath = candidatePath;
+        break;
+      }
+      counter++;
+    }
+    if (File(newPath).existsSync()) {
+      return (false, 'error_file_exists');
+    }
   }
 
   try {
     file.renameSync(newPath);
     return (true, newPath);
+  } catch (e) {
+    return (false, e.toString());
+  }
+}
+
+(bool, String) renumberFilesInFolderByOrderUtil(
+  String folderPath,
+  List<String> orderedFilePaths,
+) {
+  final dir = Directory(folderPath);
+  if (!dir.existsSync()) {
+    return (false, 'error_folder_not_exist');
+  }
+
+  final folderName = p.basename(folderPath);
+
+  try {
+    final existing = <String>[];
+    for (final entity in dir.listSync()) {
+      if (entity is File && isImageFile(entity.path)) {
+        existing.add(entity.path);
+      }
+    }
+    if (existing.isEmpty) {
+      return (true, 'success');
+    }
+
+    final existingSet = existing.toSet();
+    final finalOrder = <String>[];
+    for (final path in orderedFilePaths) {
+      if (existingSet.contains(path)) {
+        finalOrder.add(path);
+      }
+    }
+    if (finalOrder.length != existing.length) {
+      final remaining = existing.where((p) => !finalOrder.contains(p)).toList();
+      remaining.sort((a, b) => p.basename(a).compareTo(p.basename(b)));
+      finalOrder.addAll(remaining);
+    }
+
+    final tempMappings = <(String, String)>[];
+    for (var i = 0; i < finalOrder.length; i++) {
+      final filePath = finalOrder[i];
+      final ext = p.extension(filePath);
+      final tempName = '__temp_reorder_${i.toString().padLeft(5, '0')}$ext';
+      final tempPath = p.join(folderPath, tempName);
+      File(filePath).renameSync(tempPath);
+      tempMappings.add((tempPath, ext));
+    }
+
+    for (var i = 0; i < tempMappings.length; i++) {
+      final (tempPath, ext) = tempMappings[i];
+      final newFileName =
+          '$folderName (${(i + 1).toString().padLeft(3, '0')})$ext';
+      final newFilePath = p.join(folderPath, newFileName);
+      File(tempPath).renameSync(newFilePath);
+    }
+
+    return (true, 'success');
   } catch (e) {
     return (false, e.toString());
   }

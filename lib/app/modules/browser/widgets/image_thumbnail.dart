@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
@@ -30,6 +32,13 @@ class ImageThumbnail extends StatefulWidget {
 class _ImageThumbnailState extends State<ImageThumbnail>
     with SingleTickerProviderStateMixin {
   late final FPopoverController _popoverController;
+
+  bool _skipNextTap = false;
+
+  bool _mouseDown = false;
+  bool _mouseDragStarted = false;
+  bool _mouseCtrlPressed = false;
+  bool _mouseShiftPressed = false;
 
   @override
   void initState() {
@@ -101,30 +110,118 @@ class _ImageThumbnailState extends State<ImageThumbnail>
         final content = FTooltip(
           hoverEnterDuration: const Duration(milliseconds: 200),
           tipBuilder: (context, _) => _buildTooltipContent(),
-          child: GestureDetector(
-            onTap: () =>
-                widget.controller.toggleImageSelection(widget.imagePath),
-            onDoubleTap: () => _openImagePreview(context),
-            onSecondaryTap: controller.toggle,
-            child: _buildThumbnailContent(theme, isSelected),
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (event) {
+              if (event.kind != PointerDeviceKind.mouse) return;
+              if (event.buttons != kPrimaryButton) return;
+
+              final keys = HardwareKeyboard.instance.logicalKeysPressed;
+              _mouseDown = true;
+              _mouseDragStarted = false;
+              _mouseCtrlPressed =
+                  keys.contains(LogicalKeyboardKey.controlLeft) ||
+                  keys.contains(LogicalKeyboardKey.controlRight) ||
+                  keys.contains(LogicalKeyboardKey.metaLeft) ||
+                  keys.contains(LogicalKeyboardKey.metaRight);
+              _mouseShiftPressed =
+                  keys.contains(LogicalKeyboardKey.shiftLeft) ||
+                  keys.contains(LogicalKeyboardKey.shiftRight);
+            },
+            onPointerUp: (event) {
+              if (event.kind != PointerDeviceKind.mouse) return;
+              if (!_mouseDown) return;
+
+              if (!_mouseDragStarted) {
+                widget.controller.handleImageTapSelection(
+                  widget.imagePath,
+                  isCtrlPressed: _mouseCtrlPressed,
+                  isShiftPressed: _mouseShiftPressed,
+                );
+                _skipNextTap = true;
+              }
+
+              _mouseDown = false;
+              _mouseDragStarted = false;
+              _mouseCtrlPressed = false;
+              _mouseShiftPressed = false;
+            },
+            child: GestureDetector(
+              onTap: () {
+                if (_skipNextTap) {
+                  _skipNextTap = false;
+                  return;
+                }
+                widget.controller.selectSingleImage(widget.imagePath);
+              },
+              onDoubleTap: () => _openImagePreview(context),
+              onSecondaryTap: controller.toggle,
+              child: _buildThumbnailContent(theme, isSelected),
+            ),
           ),
         );
 
         // Wrap with Draggable for drag to folder support
-        return Draggable<List<String>>(
+        final draggable = Draggable<List<String>>(
           data: dragData,
-          feedback: _buildDragFeedback(theme, dragData.length),
+          feedback: IgnorePointer(
+            child: _buildDragFeedback(theme, dragData.length),
+          ),
           onDragStarted: () {
+            _mouseDragStarted = true;
+            _skipNextTap = true;
             // Auto-select when dragging if not already selected
             if (!widget.controller.selectedImages.contains(widget.imagePath)) {
-              widget.controller.selectedImages.add(widget.imagePath);
+              widget.controller.selectedImages
+                ..clear()
+                ..add(widget.imagePath);
             }
+
+            if (widget.controller.canReorderInCurrentFolder &&
+                widget.controller.selectedImages.length == 1) {
+              widget.controller.startReorder(widget.imagePath);
+            }
+          },
+          onDragCompleted: () {
+            widget.controller.handleReorderDragEnd(wasAccepted: true);
+          },
+          onDraggableCanceled: (velocity, offset) {
+            widget.controller.handleReorderDragEnd(wasAccepted: false);
           },
           childWhenDragging: Opacity(
             opacity: 0.5,
             child: _buildThumbnailContent(theme, true),
           ),
           child: content,
+        );
+
+        if (!widget.controller.canReorderInCurrentFolder) {
+          return draggable;
+        }
+
+        return DragTarget<List<String>>(
+          onWillAcceptWithDetails: (details) {
+            final canReorder =
+                widget.controller.isReordering.value &&
+                widget.controller.selectedImages.length == 1;
+            if (canReorder) {
+              widget.controller.previewReorderTo(widget.imagePath);
+            }
+            return canReorder;
+          },
+          onMove: (details) {
+            if (widget.controller.isReordering.value &&
+                widget.controller.selectedImages.length == 1) {
+              widget.controller.previewReorderTo(widget.imagePath);
+            }
+          },
+          onAcceptWithDetails: (details) {
+            widget.controller.previewReorderTo(widget.imagePath);
+            widget.controller.commitReorderAndRenumber();
+          },
+          builder: (context, candidateData, rejectedData) {
+            return draggable;
+          },
         );
       },
     );

@@ -99,6 +99,7 @@ const Map<String, String> zhCN = {
   'error_source_not_exist': '源文件不存在',
   'error_target_not_exist': '目标文件夹不存在',
   'error_file_exists': '文件已存在',
+  'error_same_folder': '图片已在当前文件夹',
   'error_file_not_exist': '文件不存在',
   'error_folder_exists': '文件夹已存在',
   'error_folder_not_exist': '文件夹不存在',
