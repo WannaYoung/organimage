@@ -7,7 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/utils/file_utils.dart';
+import '../../../core/utils/format_utils.dart';
 import '../controllers/browser_controller.dart';
 import 'image_preview.dart';
 
@@ -40,18 +40,19 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   bool _mouseCtrlPressed = false;
   bool _mouseShiftPressed = false;
 
-  bool _isCtrlOrMetaPressed() {
+  // Read modifier keys from current keyboard state.
+  // We read on pointer-up to reduce focus-related inconsistencies.
+  (bool ctrlOrMeta, bool shift) _readModifierKeys() {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    return keys.contains(LogicalKeyboardKey.controlLeft) ||
+    final ctrlOrMeta =
+        keys.contains(LogicalKeyboardKey.controlLeft) ||
         keys.contains(LogicalKeyboardKey.controlRight) ||
         keys.contains(LogicalKeyboardKey.metaLeft) ||
         keys.contains(LogicalKeyboardKey.metaRight);
-  }
-
-  bool _isShiftPressed() {
-    final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    return keys.contains(LogicalKeyboardKey.shiftLeft) ||
+    final shift =
+        keys.contains(LogicalKeyboardKey.shiftLeft) ||
         keys.contains(LogicalKeyboardKey.shiftRight);
+    return (ctrlOrMeta, shift);
   }
 
   @override
@@ -95,58 +96,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
       menuAnchor: Alignment.topLeft,
       childAnchor: Alignment.bottomLeft,
       style: (style) => style.copyWith(maxWidth: 180),
-      menu: [
-        FItemGroup(
-          children: [
-            FItem(
-              prefix: const Icon(FIcons.folderOpen),
-              title: Text('show_in_finder'.tr),
-              onPress: () {
-                _popoverController.hide();
-                widget.controller.openInFinder(widget.imagePath);
-              },
-            ),
-            FItem(
-              prefix: const Icon(FIcons.move),
-              title: Text('move_to_folder'.tr),
-              onPress: () {
-                _popoverController.hide();
-                _ensureSelectionForAction();
-                _showMoveToFolderDialog(context);
-              },
-            ),
-            if (widget.controller.selectedImages.length <= 1)
-              FItem(
-                prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
-                title: Text(
-                  'delete'.tr,
-                  style: TextStyle(color: theme.colors.destructive),
-                ),
-                onPress: () {
-                  _popoverController.hide();
-                  _ensureSelectionForAction();
-                  _showDeleteConfirmDialog(context, fileName);
-                },
-              )
-            else
-              FItem(
-                prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
-                title: Text(
-                  'delete_selected'.tr,
-                  style: TextStyle(color: theme.colors.destructive),
-                ),
-                onPress: () {
-                  _popoverController.hide();
-                  _ensureSelectionForAction();
-                  _showDeleteSelectedConfirmDialog(
-                    context,
-                    widget.controller.selectedImages.length,
-                  );
-                },
-              ),
-          ],
-        ),
-      ],
+      menu: [FItemGroup(children: _buildContextMenuItems(theme, fileName))],
       builder: (context, controller, child) {
         final content = FTooltip(
           hoverEnterDuration: const Duration(milliseconds: 200),
@@ -167,8 +117,9 @@ class _ImageThumbnailState extends State<ImageThumbnail>
               if (!_mouseDown) return;
 
               if (!_mouseDragStarted) {
-                _mouseCtrlPressed = _isCtrlOrMetaPressed();
-                _mouseShiftPressed = _isShiftPressed();
+                final modifiers = _readModifierKeys();
+                _mouseCtrlPressed = modifiers.$1;
+                _mouseShiftPressed = modifiers.$2;
                 widget.controller.handleImageTapSelection(
                   widget.imagePath,
                   isCtrlPressed: _mouseCtrlPressed,
@@ -197,7 +148,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           ),
         );
 
-        // Wrap with Draggable for drag to folder support
+        // Internal drag: move to folder OR reorder within current folder.
         final draggable = Draggable<List<String>>(
           data: dragData,
           feedback: IgnorePointer(
@@ -206,7 +157,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           onDragStarted: () {
             _mouseDragStarted = true;
             _skipNextTap = true;
-            // Auto-select when dragging if not already selected
+            // Auto-select when dragging if not already selected.
             if (!widget.controller.selectedImages.contains(widget.imagePath)) {
               widget.controller.selectedImages
                 ..clear()
@@ -261,6 +212,58 @@ class _ImageThumbnailState extends State<ImageThumbnail>
         );
       },
     );
+  }
+
+  List<FItemMixin> _buildContextMenuItems(FThemeData theme, String fileName) {
+    final isMultiSelect = widget.controller.selectedImages.length > 1;
+    return <FItemMixin>[
+      FItem(
+        prefix: const Icon(FIcons.folderOpen),
+        title: Text('show_in_finder'.tr),
+        onPress: () {
+          _popoverController.hide();
+          widget.controller.openInFinder(widget.imagePath);
+        },
+      ),
+      FItem(
+        prefix: const Icon(FIcons.move),
+        title: Text('move_to_folder'.tr),
+        onPress: () {
+          _popoverController.hide();
+          _ensureSelectionForAction();
+          _showMoveToFolderDialog(context);
+        },
+      ),
+      if (!isMultiSelect)
+        FItem(
+          prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
+          title: Text(
+            'delete'.tr,
+            style: TextStyle(color: theme.colors.destructive),
+          ),
+          onPress: () {
+            _popoverController.hide();
+            _ensureSelectionForAction();
+            _showDeleteConfirmDialog(context, fileName);
+          },
+        )
+      else
+        FItem(
+          prefix: Icon(FIcons.trash2, color: theme.colors.destructive),
+          title: Text(
+            'delete_selected'.tr,
+            style: TextStyle(color: theme.colors.destructive),
+          ),
+          onPress: () {
+            _popoverController.hide();
+            _ensureSelectionForAction();
+            _showDeleteSelectedConfirmDialog(
+              context,
+              widget.controller.selectedImages.length,
+            );
+          },
+        ),
+    ];
   }
 
   void _ensureSelectionForAction() {

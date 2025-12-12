@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
-import '../../../core/utils/file_utils.dart';
+import '../../../core/utils/format_utils.dart';
 
 /// Show image preview dialog with navigation and zoom
 void showImagePreview(

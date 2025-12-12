@@ -296,148 +296,18 @@ class _ImageGridState extends State<ImageGrid> {
         },
       );
 
-      final selectionRect = _getSelectionRect();
-      final selectionOverlay = selectionRect == null
-          ? const SizedBox.shrink()
-          : Positioned(
-              left: selectionRect.left,
-              top: selectionRect.top,
-              width: selectionRect.width,
-              height: selectionRect.height,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.primary.withValues(alpha: 0.12),
-                    border: Border.all(color: theme.colors.primary, width: 1.5),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            );
-
-      final gridWithDragSelect = Stack(
+      final gridWithInteraction = Stack(
         key: _stackKey,
         children: [
           grid,
-          if (_isExternalDragging)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.primary.withValues(alpha: 0.08),
-                    border: Border.all(color: theme.colors.primary, width: 2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'drag_hint'.tr,
-                      style: theme.typography.base.copyWith(
-                        color: theme.colors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) {
-                if (event.kind != PointerDeviceKind.mouse) return;
-                if (event.buttons != kPrimaryButton) return;
-
-                if (!_focusNode.hasFocus) {
-                  _focusNode.requestFocus();
-                }
-
-                if (_isPointerOnAnyItem(event.position)) return;
-
-                final keyboard = HardwareKeyboard.instance;
-                final isCtrl =
-                    keyboard.isControlPressed || keyboard.isMetaPressed;
-
-                final stackBox =
-                    _stackKey.currentContext?.findRenderObject() as RenderBox?;
-                if (stackBox == null) return;
-                final local = stackBox.globalToLocal(event.position);
-
-                setState(() {
-                  _isDragSelecting = true;
-                  _dragAdditive = isCtrl;
-                  _dragBaseSelection = controller.selectedImages.toList();
-                  _dragStartLocal = local;
-                  _dragCurrentLocal = local;
-                });
-              },
-              onPointerMove: (event) {
-                if (!_isDragSelecting) return;
-                final stackBox =
-                    _stackKey.currentContext?.findRenderObject() as RenderBox?;
-                if (stackBox == null) return;
-                final local = stackBox.globalToLocal(event.position);
-
-                setState(() {
-                  _dragCurrentLocal = local;
-                });
-
-                final rect = _getSelectionRect();
-                if (rect == null) return;
-
-                final selected = _getPathsIntersectingRect(rect);
-                controller.applyDragSelection(
-                  selected,
-                  additive: _dragAdditive,
-                  baseSelection: _dragBaseSelection,
-                );
-              },
-              onPointerUp: (event) {
-                if (!_isDragSelecting) return;
-                setState(() {
-                  _isDragSelecting = false;
-                  _dragStartLocal = null;
-                  _dragCurrentLocal = null;
-                  _dragAdditive = false;
-                  _dragBaseSelection = <String>[];
-                });
-              },
-              onPointerCancel: (event) {
-                if (!_isDragSelecting) return;
-                setState(() {
-                  _isDragSelecting = false;
-                  _dragStartLocal = null;
-                  _dragCurrentLocal = null;
-                  _dragAdditive = false;
-                  _dragBaseSelection = <String>[];
-                });
-              },
-              child: const SizedBox.expand(),
-            ),
-          ),
-          selectionOverlay,
+          _buildExternalDragOverlay(theme),
+          _buildDragSelectListenerLayer(),
+          _buildSelectionOverlay(theme),
         ],
       );
 
-      final dropWrapped = DropTarget(
-        onDragEntered: (details) {
-          setState(() {
-            _isExternalDragging = true;
-          });
-        },
-        onDragExited: (details) {
-          setState(() {
-            _isExternalDragging = false;
-          });
-        },
-        onDragDone: (details) {
-          setState(() {
-            _isExternalDragging = false;
-          });
-          final paths = details.files.map((f) => f.path).toList();
-          controller.importExternalImagesToCurrentFolder(paths);
-        },
-        child: gridWithDragSelect,
-      );
+      // External drop: import images into current folder.
+      final dropWrapped = _wrapWithExternalDropTarget(gridWithInteraction);
 
       if (!controller.canReorderInCurrentFolder) {
         return dropWrapped;
@@ -456,6 +326,152 @@ class _ImageGridState extends State<ImageGrid> {
         },
       );
     });
+  }
+
+  Widget _wrapWithExternalDropTarget(Widget child) {
+    return DropTarget(
+      onDragEntered: (details) {
+        setState(() {
+          _isExternalDragging = true;
+        });
+      },
+      onDragExited: (details) {
+        setState(() {
+          _isExternalDragging = false;
+        });
+      },
+      onDragDone: (details) {
+        setState(() {
+          _isExternalDragging = false;
+        });
+        final paths = details.files.map((f) => f.path).toList();
+        controller.importExternalImagesToCurrentFolder(paths);
+      },
+      child: child,
+    );
+  }
+
+  // Overlay shown when user is dragging external files over the grid.
+  Widget _buildExternalDragOverlay(FThemeData theme) {
+    if (!_isExternalDragging) return const SizedBox.shrink();
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.primary.withValues(alpha: 0.08),
+            border: Border.all(color: theme.colors.primary, width: 2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              'drag_hint'.tr,
+              style: theme.typography.base.copyWith(
+                color: theme.colors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Drag-select layer for rectangular selection on empty grid area.
+  Widget _buildDragSelectListenerLayer() {
+    return Positioned.fill(
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (event) {
+          if (event.kind != PointerDeviceKind.mouse) return;
+          if (event.buttons != kPrimaryButton) return;
+
+          if (!_focusNode.hasFocus) {
+            _focusNode.requestFocus();
+          }
+
+          if (_isPointerOnAnyItem(event.position)) return;
+
+          final keyboard = HardwareKeyboard.instance;
+          final isCtrl = keyboard.isControlPressed || keyboard.isMetaPressed;
+
+          final stackBox =
+              _stackKey.currentContext?.findRenderObject() as RenderBox?;
+          if (stackBox == null) return;
+          final local = stackBox.globalToLocal(event.position);
+
+          setState(() {
+            _isDragSelecting = true;
+            _dragAdditive = isCtrl;
+            _dragBaseSelection = controller.selectedImages.toList();
+            _dragStartLocal = local;
+            _dragCurrentLocal = local;
+          });
+        },
+        onPointerMove: (event) {
+          if (!_isDragSelecting) return;
+          final stackBox =
+              _stackKey.currentContext?.findRenderObject() as RenderBox?;
+          if (stackBox == null) return;
+          final local = stackBox.globalToLocal(event.position);
+
+          setState(() {
+            _dragCurrentLocal = local;
+          });
+
+          final rect = _getSelectionRect();
+          if (rect == null) return;
+
+          final selected = _getPathsIntersectingRect(rect);
+          controller.applyDragSelection(
+            selected,
+            additive: _dragAdditive,
+            baseSelection: _dragBaseSelection,
+          );
+        },
+        onPointerUp: (event) {
+          if (!_isDragSelecting) return;
+          setState(() {
+            _isDragSelecting = false;
+            _dragStartLocal = null;
+            _dragCurrentLocal = null;
+            _dragAdditive = false;
+            _dragBaseSelection = <String>[];
+          });
+        },
+        onPointerCancel: (event) {
+          if (!_isDragSelecting) return;
+          setState(() {
+            _isDragSelecting = false;
+            _dragStartLocal = null;
+            _dragCurrentLocal = null;
+            _dragAdditive = false;
+            _dragBaseSelection = <String>[];
+          });
+        },
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+
+  // Selection rectangle overlay (rubber band).
+  Widget _buildSelectionOverlay(FThemeData theme) {
+    final rect = _getSelectionRect();
+    if (rect == null) return const SizedBox.shrink();
+    return Positioned(
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.primary.withValues(alpha: 0.12),
+            border: Border.all(color: theme.colors.primary, width: 1.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
   }
 
   Rect? _getSelectionRect() {

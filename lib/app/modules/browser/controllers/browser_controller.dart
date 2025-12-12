@@ -4,7 +4,10 @@ import 'package:flutter/painting.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/utils/file_utils.dart';
+import '../../../core/utils/file_ops_utils.dart';
+import '../../../core/utils/image_scan_utils.dart';
+import '../../../core/utils/import_utils.dart';
+import '../../../core/utils/renumber_utils.dart';
 import '../../../core/utils/toast_utils.dart';
 
 class BrowserController extends GetxController {
@@ -207,6 +210,16 @@ class BrowserController extends GetxController {
     PaintingBinding.instance.imageCache.clearLiveImages();
   }
 
+  // Refresh UI after a file system change.
+  // This keeps the original workflow: optional renumber -> reload -> clear cache.
+  void _refreshAfterFileOperation({required bool renumberCurrentFolder}) {
+    if (renumberCurrentFolder && !isAtRoot && currentPath.value != null) {
+      renumberFilesInFolder(currentPath.value!);
+    }
+    loadCurrentDirectory();
+    _clearImageCache();
+  }
+
   Future<void> importExternalImagesToCurrentFolder(List<String> paths) async {
     final folderPath = currentPath.value;
     if (folderPath == null) return;
@@ -231,8 +244,7 @@ class BrowserController extends GetxController {
         return;
       }
 
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast(
         'imported_count'.trParams({'count': '${imagePaths.length}'}),
       );
@@ -288,11 +300,7 @@ class BrowserController extends GetxController {
         }
       }
 
-      if (!isAtRoot && currentPath.value != null) {
-        renumberFilesInFolder(currentPath.value!);
-      }
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: true);
       if (successCount > 0 && failCount == 0) {
         showSuccessToast('moved_count'.trParams({'count': '$successCount'}));
       }
@@ -319,11 +327,7 @@ class BrowserController extends GetxController {
         }
       }
 
-      if (!isAtRoot && currentPath.value != null) {
-        renumberFilesInFolder(currentPath.value!);
-      }
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: true);
     } finally {
       isLoading.value = false;
     }
@@ -347,11 +351,7 @@ class BrowserController extends GetxController {
         }
       }
 
-      if (!isAtRoot && currentPath.value != null) {
-        renumberFilesInFolder(currentPath.value!);
-      }
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: true);
 
       if (successCount > 0 && failCount == 0) {
         showSuccessToast('deleted_count'.trParams({'count': '$successCount'}));
@@ -482,8 +482,7 @@ class BrowserController extends GetxController {
         showErrorToast(result);
       }
       loadCurrentDirectory();
-      PaintingBinding.instance.imageCache.clear();
-      PaintingBinding.instance.imageCache.clearLiveImages();
+      _clearImageCache();
     } finally {
       _reorderDraggingPath = null;
       _reorderOriginalOrder = <String>[];
@@ -536,12 +535,7 @@ class BrowserController extends GetxController {
     final (success, result) = deleteFile(imagePath);
     if (success) {
       selectedImages.remove(imagePath);
-      // Renumber files if we're in a subfolder (not root)
-      if (!isAtRoot && currentPath.value != null) {
-        renumberFilesInFolder(currentPath.value!);
-      }
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: true);
       showSuccessToast('image_deleted'.tr);
     } else {
       showErrorToast(_formatErrorMessage(result));
@@ -552,8 +546,7 @@ class BrowserController extends GetxController {
   void deleteFolderByPath(String folderPath) {
     final (success, result) = deleteFolder(folderPath);
     if (success) {
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast('folder_deleted'.tr);
     } else {
       showErrorToast(_formatErrorMessage(result));
@@ -571,8 +564,7 @@ class BrowserController extends GetxController {
       if (currentPath.value == folderPath) {
         currentPath.value = newPath;
       }
-      loadCurrentDirectory();
-      _clearImageCache();
+      _refreshAfterFileOperation(renumberCurrentFolder: false);
       showSuccessToast('folder_renamed'.tr);
     } else {
       showErrorToast(newPath);

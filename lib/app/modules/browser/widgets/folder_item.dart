@@ -5,7 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/utils/file_utils.dart';
+import '../../../core/utils/image_scan_utils.dart';
 import '../controllers/browser_controller.dart';
 import 'image_preview.dart';
 
