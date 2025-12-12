@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -13,15 +14,18 @@ void main() async {
 
   // Initialize window manager for desktop
   await windowManager.ensureInitialized();
-  const windowOptions = WindowOptions(
-    minimumSize: Size(800, 600),
-    size: Size(1200, 800),
+  final windowOptions = WindowOptions(
+    minimumSize: const Size(800, 600),
+    size: const Size(1200, 800),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
+    titleBarStyle: Platform.isMacOS
+        ? TitleBarStyle.hidden
+        : TitleBarStyle.normal,
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setTitle('图片整理');
     await windowManager.show();
     await windowManager.focus();
   });

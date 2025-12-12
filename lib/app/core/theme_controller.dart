@@ -10,7 +10,7 @@ enum ThemeColor { zinc, slate, red, rose, orange, green, blue, yellow, violet }
 /// Theme controller for managing app theme and locale
 class ThemeController extends GetxController {
   final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
-  final Rx<ThemeColor> themeColor = ThemeColor.zinc.obs;
+  final Rx<ThemeColor> themeColor = ThemeColor.blue.obs;
   final Rx<Locale> locale = const Locale('en', 'US').obs;
 
   @override
@@ -59,10 +59,10 @@ class ThemeController extends GetxController {
       try {
         themeColor.value = ThemeColor.values.firstWhere(
           (c) => c.name == savedThemeColor,
-          orElse: () => ThemeColor.zinc,
+          orElse: () => ThemeColor.blue,
         );
       } catch (_) {
-        themeColor.value = ThemeColor.zinc;
+        themeColor.value = ThemeColor.blue;
       }
     }
   }
