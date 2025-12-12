@@ -28,6 +28,14 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  msix: ^3.16.12
 
 flutter:
   uses-material-design: true
+
+msix_config:
+  display_name: 图片整理
+  publisher_display_name: WannaYoung
+  identity_name: cn.wannayoung.organimage
+  msix_version: 1.0.0.0
+  logo_path: assets/images/icon.png
