@@ -60,6 +60,8 @@ class ImageThumbnailContent extends StatelessWidget {
     final cacheSide = (size * 2).toInt();
 
     final displayPath = _resolveDisplayPath();
+    final isUsingCachedThumbnail =
+        controller.useThumbnails.value && displayPath != imagePath;
 
     return Container(
       decoration: BoxDecoration(
@@ -90,7 +92,7 @@ class ImageThumbnailContent extends StatelessWidget {
                 File(displayPath),
                 fit: BoxFit.cover,
                 cacheWidth: cacheSide,
-                cacheHeight: cacheSide,
+                cacheHeight: isUsingCachedThumbnail ? cacheSide : null,
                 filterQuality: FilterQuality.low,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
