@@ -20,6 +20,10 @@ const Map<String, String> enUS = {
   'dark_mode': 'Dark',
   'theme_color': 'Theme Color',
   'language': 'Language',
+  'browse_mode': 'Browse Mode',
+  'thumbnail_mode': 'Thumbnail Mode',
+  'thumbnail_mode_desc':
+      'Generate and use cached thumbnails for smoother scrolling in large folders',
   'lang_en': 'English',
   'lang_zh_cn': '简体中文',
   'lang_zh_tw': '繁體中文',

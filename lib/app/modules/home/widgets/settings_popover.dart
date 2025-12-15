@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 
 import '../../../core/theme_controller.dart';
+import '../controllers/home_controller.dart';
 
 class SettingsPopover extends StatelessWidget {
   const SettingsPopover({super.key});
@@ -13,6 +14,7 @@ class SettingsPopover extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = FTheme.of(context);
     final themeController = Get.find<ThemeController>();
+    final homeController = Get.find<HomeController>();
 
     ImageFilter blurFilter(double animation) => ImageFilter.compose(
       outer: ImageFilter.blur(sigmaX: animation * 5, sigmaY: animation * 5),
@@ -68,6 +70,11 @@ class SettingsPopover extends StatelessWidget {
 
               // Language section
               _buildLanguageSection(theme, themeController),
+              const SizedBox(height: 12),
+              const FDivider(),
+              const SizedBox(height: 12),
+
+              _buildThumbnailSection(theme, homeController),
               const SizedBox(height: 12),
               const FDivider(),
               const SizedBox(height: 12),
@@ -162,7 +169,7 @@ class SettingsPopover extends StatelessWidget {
             children: [
               FRadio(
                 label: Text(
-                  'English',
+                  'lang_en'.tr,
                   style: TextStyle(color: theme.colors.foreground),
                 ),
                 value: themeController.locale.value.languageCode == 'en',
@@ -175,7 +182,7 @@ class SettingsPopover extends StatelessWidget {
               const SizedBox(height: 4),
               FRadio(
                 label: Text(
-                  '简体中文',
+                  'lang_zh_cn'.tr,
                   style: TextStyle(color: theme.colors.foreground),
                 ),
                 value:
@@ -190,7 +197,7 @@ class SettingsPopover extends StatelessWidget {
               const SizedBox(height: 4),
               FRadio(
                 label: Text(
-                  '繁體中文',
+                  'lang_zh_tw'.tr,
                   style: TextStyle(color: theme.colors.foreground),
                 ),
                 value:
@@ -256,6 +263,49 @@ class SettingsPopover extends StatelessWidget {
                 ),
               );
             }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThumbnailSection(
+    FThemeData theme,
+    HomeController homeController,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'browse_mode'.tr,
+          style: theme.typography.sm.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colors.foreground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Obx(
+          () => FCheckbox(
+            style: (style) => style.copyWith(
+              labelTextStyle: FWidgetStateMap.all(
+                theme.typography.sm.copyWith(
+                  color: theme.colors.foreground,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              descriptionTextStyle: FWidgetStateMap.all(
+                theme.typography.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+            ),
+            label: Text('thumbnail_mode'.tr),
+            description: Text('thumbnail_mode_desc'.tr),
+            semanticsLabel: 'thumbnail_mode'.tr,
+            value: homeController.useThumbnails.value,
+            onChange: (value) {
+              homeController.setUseThumbnails(value);
+            },
           ),
         ),
       ],

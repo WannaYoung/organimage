@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:get/get.dart';
+import 'package:path/path.dart' as p;
 
 import '../services/renumber_service.dart';
 
@@ -23,7 +24,7 @@ class ReorderCoordinator {
   final String? Function() getCurrentFolderPath;
   final bool Function() canReorderInCurrentFolder;
   final void Function({required bool value, String? messageKey}) setLoading;
-  final void Function() refreshAfterCommit;
+  final Future<void> Function() refreshAfterCommit;
   final void Function(String message) showError;
 
   String? _reorderDraggingPath;
@@ -124,8 +125,19 @@ class ReorderCoordinator {
           .renumberFilesInFolderByOrder(folderPath, orderedPaths);
       if (!success) {
         showError(result);
+      } else {
+        final folderName = p.basename(folderPath);
+        final next = <FileSystemEntity>[];
+        for (var i = 0; i < orderedPaths.length; i++) {
+          final ext = p.extension(orderedPaths[i]);
+          final newFileName =
+              '$folderName (${(i + 1).toString().padLeft(3, '0')})$ext';
+          final newPath = p.join(folderPath, newFileName);
+          next.add(File(newPath));
+        }
+        imageFiles.assignAll(List<FileSystemEntity>.unmodifiable(next));
       }
-      refreshAfterCommit();
+      await refreshAfterCommit();
     } finally {
       _reorderDraggingPath = null;
       _reorderOriginalOrder = <String>[];

@@ -1,5 +1,6 @@
 import 'dart:isolate';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
@@ -34,6 +35,16 @@ bool _isImageFile(String filePath) {
   return imageExtensions.contains(ext);
 }
 
+String _newSessionId() {
+  final ts = DateTime.now().microsecondsSinceEpoch;
+  final rand = Random().nextInt(1 << 32);
+  return '${ts}_$rand';
+}
+
+File _lockFileForFolder(String folderPath) {
+  return File(p.join(folderPath, '__organimage_renumber.lock'));
+}
+
 (bool, String) _renumberFilesInFolderByOrderSync(
   String folderPath,
   List<String> orderedFilePaths,
@@ -44,6 +55,12 @@ bool _isImageFile(String filePath) {
   }
 
   final folderName = p.basename(folderPath);
+  final lockFile = _lockFileForFolder(folderPath);
+  try {
+    lockFile.createSync(exclusive: true);
+  } catch (_) {
+    return (false, 'error_renumber_in_progress');
+  }
 
   try {
     final existing = <String>[];
@@ -69,18 +86,20 @@ bool _isImageFile(String filePath) {
       finalOrder.addAll(remaining);
     }
 
-    final tempMappings = <(String, String)>[];
+    final sessionId = _newSessionId();
+    final tempMappings = <(String originalPath, String tempPath, String ext)>[];
     for (var i = 0; i < finalOrder.length; i++) {
       final filePath = finalOrder[i];
       final ext = p.extension(filePath);
-      final tempName = '__temp_reorder_${i.toString().padLeft(5, '0')}$ext';
+      final tempName =
+          '__temp_reorder_${sessionId}_${i.toString().padLeft(5, '0')}$ext';
       final tempPath = p.join(folderPath, tempName);
       File(filePath).renameSync(tempPath);
-      tempMappings.add((tempPath, ext));
+      tempMappings.add((filePath, tempPath, ext));
     }
 
     for (var i = 0; i < tempMappings.length; i++) {
-      final (tempPath, ext) = tempMappings[i];
+      final (_, tempPath, ext) = tempMappings[i];
       final newFileName =
           '$folderName (${(i + 1).toString().padLeft(3, '0')})$ext';
       final newFilePath = p.join(folderPath, newFileName);
@@ -90,6 +109,14 @@ bool _isImageFile(String filePath) {
     return (true, 'success');
   } catch (e) {
     return (false, e.toString());
+  } finally {
+    try {
+      if (lockFile.existsSync()) {
+        lockFile.deleteSync();
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 }
 
@@ -100,6 +127,12 @@ bool _isImageFile(String filePath) {
   }
 
   final folderName = p.basename(folderPath);
+  final lockFile = _lockFileForFolder(folderPath);
+  try {
+    lockFile.createSync(exclusive: true);
+  } catch (_) {
+    return (false, 'error_renumber_in_progress');
+  }
 
   try {
     final imageFiles = <String>[];
@@ -113,18 +146,20 @@ bool _isImageFile(String filePath) {
     }
     imageFiles.sort((a, b) => p.basename(a).compareTo(p.basename(b)));
 
-    final tempMappings = <(String, String)>[];
+    final sessionId = _newSessionId();
+    final tempMappings = <(String originalPath, String tempPath, String ext)>[];
     for (var i = 0; i < imageFiles.length; i++) {
       final filePath = imageFiles[i];
       final ext = p.extension(filePath);
-      final tempName = '__temp_renumber_${i.toString().padLeft(5, '0')}$ext';
+      final tempName =
+          '__temp_renumber_${sessionId}_${i.toString().padLeft(5, '0')}$ext';
       final tempPath = p.join(folderPath, tempName);
       File(filePath).renameSync(tempPath);
-      tempMappings.add((tempPath, ext));
+      tempMappings.add((filePath, tempPath, ext));
     }
 
     for (var i = 0; i < tempMappings.length; i++) {
-      final (tempPath, ext) = tempMappings[i];
+      final (_, tempPath, ext) = tempMappings[i];
       final newFileName =
           '$folderName (${(i + 1).toString().padLeft(3, '0')})$ext';
       final newFilePath = p.join(folderPath, newFileName);
@@ -134,6 +169,14 @@ bool _isImageFile(String filePath) {
     return (true, 'success');
   } catch (e) {
     return (false, e.toString());
+  } finally {
+    try {
+      if (lockFile.existsSync()) {
+        lockFile.deleteSync();
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 }
 
@@ -153,6 +196,13 @@ bool _isImageFile(String filePath) {
     return (false, 'error_folder_exists');
   }
 
+  final lockFile = _lockFileForFolder(folderPath);
+  try {
+    lockFile.createSync(exclusive: true);
+  } catch (_) {
+    return (false, 'error_renumber_in_progress');
+  }
+
   try {
     final imageFiles = <String>[];
     for (final entity in Directory(folderPath).listSync()) {
@@ -162,18 +212,20 @@ bool _isImageFile(String filePath) {
     }
     imageFiles.sort((a, b) => p.basename(a).compareTo(p.basename(b)));
 
-    final tempMappings = <(String, String, String)>[];
+    final sessionId = _newSessionId();
+    final tempMappings = <(String originalPath, String tempPath, String ext)>[];
     for (var i = 0; i < imageFiles.length; i++) {
       final filePath = imageFiles[i];
       final ext = p.extension(filePath);
-      final tempName = '__temp_rename_${i.toString().padLeft(5, '0')}$ext';
+      final tempName =
+          '__temp_rename_${sessionId}_${i.toString().padLeft(5, '0')}$ext';
       final tempPath = p.join(folderPath, tempName);
       File(filePath).renameSync(tempPath);
-      tempMappings.add((tempPath, ext, filePath));
+      tempMappings.add((filePath, tempPath, ext));
     }
 
     for (var i = 0; i < tempMappings.length; i++) {
-      final (tempPath, ext, _) = tempMappings[i];
+      final (_, tempPath, ext) = tempMappings[i];
       final newFileName =
           '$newName (${(i + 1).toString().padLeft(3, '0')})$ext';
       final newFilePath = p.join(folderPath, newFileName);
@@ -184,5 +236,18 @@ bool _isImageFile(String filePath) {
     return (true, newFolderPath);
   } catch (e) {
     return (false, e.toString());
+  } finally {
+    try {
+      final oldLockFile = _lockFileForFolder(folderPath);
+      if (oldLockFile.existsSync()) {
+        oldLockFile.deleteSync();
+      }
+      final newLockFile = _lockFileForFolder(newFolderPath);
+      if (newLockFile.existsSync()) {
+        newLockFile.deleteSync();
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 }

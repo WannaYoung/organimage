@@ -11,11 +11,25 @@ class HomeController extends GetxController {
   final Rx<String?> selectedPath = Rx<String?>(null);
   final RxBool isLoading = false.obs;
   final RxList<String> recentFolders = <String>[].obs;
+  final RxBool useThumbnails = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     _loadRecentFolders();
+    _loadUseThumbnails();
+  }
+
+  Future<void> _loadUseThumbnails() async {
+    useThumbnails.value = await StorageService.getUseThumbnails();
+  }
+
+  Future<void> setUseThumbnails(bool enabled) async {
+    useThumbnails.value = enabled;
+    await StorageService.setUseThumbnails(enabled);
+    if (!enabled) {
+      await StorageService.clearThumbnailCache();
+    }
   }
 
   Future<void> _loadRecentFolders() async {
@@ -62,7 +76,10 @@ class HomeController extends GetxController {
     await StorageService.addRecentFolder(path);
     await _loadRecentFolders();
     // Navigate to browser page with the selected path
-    Get.toNamed(Routes.browser, arguments: {'rootPath': path});
+    Get.toNamed(
+      Routes.browser,
+      arguments: {'rootPath': path, 'useThumbnails': useThumbnails.value},
+    );
   }
 
   Future<void> clearRecentFolders() async {

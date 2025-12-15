@@ -129,4 +129,40 @@ class StorageService {
     config['theme_color'] = color;
     await _saveConfig(config);
   }
+
+  /// Get thumbnail mode preference
+  static Future<bool> getUseThumbnails() async {
+    final config = await _loadConfig();
+    return config['use_thumbnails'] as bool? ?? false;
+  }
+
+  /// Set thumbnail mode preference
+  static Future<void> setUseThumbnails(bool enabled) async {
+    final config = await _loadConfig();
+    config['use_thumbnails'] = enabled;
+    await _saveConfig(config);
+  }
+
+  static Future<void> clearThumbnailCache() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final root = Directory('${dir.path}/organimage_cache');
+      if (!await root.exists()) return;
+
+      final entities = root.listSync(followLinks: false);
+      for (final entity in entities) {
+        if (entity is! Directory) continue;
+        final name = entity.path.split(Platform.pathSeparator).last;
+        if (name.startsWith('thumb_')) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {
+            // Ignore errors
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore errors
+    }
+  }
 }

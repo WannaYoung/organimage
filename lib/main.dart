@@ -12,6 +12,10 @@ import 'app/routes/app_pages.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Tune image cache for large thumbnail grids.
+  PaintingBinding.instance.imageCache.maximumSize = 2000;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 256 << 20;
+
   // Initialize window manager for desktop
   await windowManager.ensureInitialized();
   final windowOptions = WindowOptions(

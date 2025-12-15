@@ -4,6 +4,7 @@ import '../controllers/browser_controller.dart';
 import '../services/directory_service.dart';
 import '../services/file_operation_service.dart';
 import '../services/renumber_service.dart';
+import '../services/thumbnail_service.dart';
 
 class BrowserBinding extends Bindings {
   @override
@@ -11,12 +12,14 @@ class BrowserBinding extends Bindings {
     Get.lazyPut<DirectoryService>(() => DirectoryService());
     Get.lazyPut<FileOperationService>(() => FileOperationService());
     Get.lazyPut<RenumberService>(() => RenumberService());
+    Get.lazyPut<ThumbnailService>(() => ThumbnailService());
 
     Get.lazyPut<BrowserController>(
       () => BrowserController(
         directoryService: Get.find<DirectoryService>(),
         fileOperationService: Get.find<FileOperationService>(),
         renumberService: Get.find<RenumberService>(),
+        thumbnailService: Get.find<ThumbnailService>(),
       ),
     );
   }
