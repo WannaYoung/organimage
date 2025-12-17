@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/format_utils.dart';
 
+/// 图片缩略图提示组件，显示文件信息
 class ImageThumbnailTooltip extends StatefulWidget {
   final String imagePath;
 
@@ -19,7 +20,7 @@ class ImageThumbnailTooltip extends StatefulWidget {
 class _ImageThumbnailTooltipState extends State<ImageThumbnailTooltip> {
   Future<_TooltipInfo>? _tooltipInfoFuture;
 
-  // Loads file meta info for tooltip rendering.
+  // 加载文件元信息用于提示渲染
   Future<_TooltipInfo> _loadTooltipInfo() async {
     final file = File(widget.imagePath);
     final stat = await file.stat();
@@ -75,7 +76,7 @@ class _ImageThumbnailTooltipState extends State<ImageThumbnailTooltip> {
     );
   }
 
-  // Single label/value row in tooltip.
+  // 提示中的单个标签/值行
   Widget _buildTooltipRow(
     TextStyle labelStyle,
     TextStyle valueStyle,
@@ -92,7 +93,7 @@ class _ImageThumbnailTooltipState extends State<ImageThumbnailTooltip> {
   }
 }
 
-// Tooltip data displayed when hovering the thumbnail.
+/// 悬停缩略图时显示的提示数据
 class _TooltipInfo {
   final String fileName;
   final String size;

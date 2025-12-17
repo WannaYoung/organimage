@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../controllers/home_controller.dart';
 
+/// 最近文件夹弹出框组件
 class RecentFoldersPopover extends GetView<HomeController> {
   const RecentFoldersPopover({super.key});
 

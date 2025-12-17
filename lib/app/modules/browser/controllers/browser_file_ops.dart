@@ -10,6 +10,7 @@ import '../services/file_operation_service.dart';
 import '../services/renumber_service.dart';
 import '../services/thumbnail_service.dart';
 
+/// 文件操作处理器，处理文件的导入、移动、删除等操作
 class BrowserFileOps {
   final DirectoryService directoryService;
   final FileOperationService fileOperationService;
@@ -60,7 +61,7 @@ class BrowserFileOps {
     required this.formatErrorMessage,
   });
 
-  // Refreshes UI after a file system change.
+  /// 文件系统更改后刷新UI
   Future<void> refreshAfterFileOperation({
     required bool renumberCurrentFolder,
   }) async {
@@ -80,7 +81,7 @@ class BrowserFileOps {
     clearImageCache();
   }
 
-  // Imports external images (drop) into current folder.
+  /// 将外部图片（拖放）导入到当前文件夹
   Future<void> importExternalImagesToCurrentFolder(List<String> paths) async {
     final folderPath = currentPath.value;
     if (folderPath == null) return;
@@ -114,7 +115,7 @@ class BrowserFileOps {
     }
   }
 
-  // Moves selected images to a folder.
+  /// 将选中的图片移动到文件夹
   Future<void> moveSelectedToFolder(String folderPath) async {
     if (selectedImages.isEmpty) return;
 
@@ -147,7 +148,7 @@ class BrowserFileOps {
     }
   }
 
-  // Moves selected images to root folder without renaming.
+  /// 将选中的图片移动到根目录（不重命名）
   Future<void> moveSelectedToRootFolder() async {
     if (selectedImages.isEmpty || rootPath.value == null) return;
 
@@ -170,7 +171,7 @@ class BrowserFileOps {
     }
   }
 
-  // Deletes selected images.
+  /// 删除选中的图片
   Future<void> deleteSelectedImages() async {
     if (selectedImages.isEmpty) return;
 
@@ -198,7 +199,7 @@ class BrowserFileOps {
     }
   }
 
-  // Creates a new folder under current path.
+  /// 在当前路径下创建新文件夹
   Future<void> createNewFolder(String folderName) async {
     if (currentPath.value == null) return;
 
@@ -214,12 +215,12 @@ class BrowserFileOps {
     }
   }
 
-  // Updates thumbnail size preference.
+  /// 更新缩略图大小偏好
   void setThumbnailSize(double size) {
     thumbnailSize.value = size;
   }
 
-  // Toggles thumbnail usage and triggers pre-generation.
+  /// 切换缩略图使用并触发预生成
   void setUseThumbnails(bool enabled) {
     if (useThumbnails.value == enabled) return;
     useThumbnails.value = enabled;
@@ -245,7 +246,7 @@ class BrowserFileOps {
     update();
   }
 
-  // Opens a file or folder in system file manager.
+  /// 在系统文件管理器中打开文件或文件夹
   Future<void> openInFinder(String path) async {
     final result = await fileOperationService.openInFinder(path);
     if (!result.$1) {
@@ -253,7 +254,7 @@ class BrowserFileOps {
     }
   }
 
-  // Renames a single image.
+  /// 重命名单张图片
   Future<void> renameImage(String imagePath, String newName) async {
     final (success, result) = await fileOperationService.renameFile(
       imagePath,
@@ -267,7 +268,7 @@ class BrowserFileOps {
     }
   }
 
-  // Deletes a single image.
+  /// 删除单张图片
   Future<void> deleteImage(String imagePath) async {
     final (success, result) = await fileOperationService.deleteFile(imagePath);
     if (success) {
@@ -279,7 +280,7 @@ class BrowserFileOps {
     }
   }
 
-  // Deletes a folder by path.
+  /// 根据路径删除文件夹
   Future<void> deleteFolderByPath(String folderPath) async {
     final (success, result) = await fileOperationService.deleteFolder(
       folderPath,
@@ -292,7 +293,7 @@ class BrowserFileOps {
     }
   }
 
-  // Renames folder and all its contents.
+  /// 重命名文件夹及其所有内容
   Future<void> renameFolderWithContents(
     String folderPath,
     String newName,

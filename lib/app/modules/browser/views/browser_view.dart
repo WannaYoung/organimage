@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../controllers/browser_controller.dart';
 import '../widgets/widgets.dart';
 
+/// 浏览器主视图，包含侧边栏和图片网格
 class BrowserView extends GetView<BrowserController> {
   const BrowserView({super.key});
 
@@ -19,7 +20,7 @@ class BrowserView extends GetView<BrowserController> {
           const sidebarWidth = 280.0;
           final contentWidth = totalWidth - sidebarWidth - 10;
 
-          // Right side minExtent = half of total width, so left side max = half
+          // 右侧最小宽度 = 总宽度的一半，所以左侧最大宽度 = 一半
           final rightMinExtent = totalWidth / 2;
 
           return FResizable(

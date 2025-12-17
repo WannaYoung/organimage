@@ -12,6 +12,7 @@ import 'image_thumbnail_content.dart';
 import 'image_thumbnail_dialogs.dart';
 import 'image_thumbnail_tooltip.dart';
 
+/// 图片缩略图组件，显示单张图片的缩略图和交互
 class ImageThumbnail extends StatefulWidget {
   final String imagePath;
   final double size;
@@ -41,8 +42,8 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   bool _mouseCtrlPressed = false;
   bool _mouseShiftPressed = false;
 
-  // Read modifier keys from current keyboard state.
-  // We read on pointer-up to reduce focus-related inconsistencies.
+  // 从当前键盘状态读取修饰键
+  // 我们在指针抬起时读取以减少焦点相关的不一致性
   (bool ctrlOrMeta, bool shift) _readModifierKeys() {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
     final ctrlOrMeta =
@@ -68,7 +69,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
     super.dispose();
   }
 
-  // Ensures the current thumbnail is part of selection before executing an action.
+  // 在执行操作之前确保当前缩略图是选中的一部分
   void _ensureSelectionForAction() {
     if (widget.controller.selectedImages.contains(widget.imagePath)) {
       return;
@@ -150,7 +151,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           widget.imagePath,
         );
 
-        // If dragging a selected image, drag all selected; otherwise drag only this image
+        // 如果拖拽已选中的图片，则拖拽所有选中的；否则只拖拽此图片
         final dragData =
             isSelected && widget.controller.selectedImages.isNotEmpty
             ? widget.controller.selectedImages.toList()
@@ -231,7 +232,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           ),
         );
 
-        // Internal drag: move to folder OR reorder within current folder.
+        // 内部拖拽：移动到文件夹或在当前文件夹内重排序
         final draggable = Draggable<List<String>>(
           data: dragData,
           feedback: IgnorePointer(
@@ -240,7 +241,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
           onDragStarted: () {
             _mouseDragStarted = true;
             _skipNextTap = true;
-            // Auto-select when dragging if not already selected.
+            // 如果未选中，拖拽时自动选中
             if (!widget.controller.selectedImages.contains(widget.imagePath)) {
               widget.controller.selectedImages
                 ..clear()
@@ -355,7 +356,7 @@ class _ImageThumbnailState extends State<ImageThumbnail>
   }
 
   void _openImagePreview(BuildContext context) {
-    // Get all image paths from controller
+    // 从控制器获取所有图片路径
     final imageList = widget.controller.imageFiles.map((f) => f.path).toList();
 
     showImagePreview(

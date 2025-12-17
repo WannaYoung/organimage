@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+/// 缩略图服务，提供缩略图生成和缓存功能
 class ThumbnailService {
   ThumbnailService({int targetSide = 400, int batchSize = 20})
     : _targetSide = targetSide,
@@ -20,18 +21,22 @@ class ThumbnailService {
 
   final Map<String, String> _resolvedThumbnailBySourcePath = <String, String>{};
 
+  /// 清除已解析的缩略图缓存
   void clearResolvedCache() {
     _resolvedThumbnailBySourcePath.clear();
   }
 
+  /// 获取已解析的缩略图路径
   String? getResolvedThumbnailPath(String sourcePath) {
     return _resolvedThumbnailBySourcePath[sourcePath];
   }
 
+  /// 同步解析缩略图路径
   String? resolveThumbnailPathSync(String sourcePath, double size) {
     return _resolvedThumbnailBySourcePath[sourcePath];
   }
 
+  /// 为文件夹预生成缩略图
   Future<void> preGenerateForFolder(
     String folderPath,
     List<String> imagePaths, {
@@ -124,7 +129,7 @@ Map<String, String> _generateAndResolveForSourcesSync(
       tmpFile.writeAsBytesSync(encoded, flush: true);
       tmpFile.renameSync(dst);
     } catch (_) {
-      // ignore
+      // 忽略
     }
   }
 

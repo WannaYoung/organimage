@@ -7,6 +7,7 @@ import '../modules/browser/views/browser_view.dart';
 
 part 'app_routes.dart';
 
+/// 应用页面配置，定义路由和页面绑定
 class AppPages {
   AppPages._();
 

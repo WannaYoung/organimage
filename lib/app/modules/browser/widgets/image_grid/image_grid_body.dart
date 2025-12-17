@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../controllers/browser_controller.dart';
 import 'image_grid_interactive.dart';
 
+/// 图片网格主体组件，包含图片列表和加载状态
 class ImageGridBody extends StatefulWidget {
   final BrowserController controller;
 
@@ -28,7 +29,7 @@ class _ImageGridBodyState extends State<ImageGridBody> {
     super.initState();
     _lastPath = controller.currentPath.value;
 
-    // Resets scroll position when navigating to a different folder.
+    // 导航到不同文件夹时重置滚动位置
     ever(controller.currentPath, (path) {
       if (path != _lastPath) {
         _lastPath = path;
@@ -46,7 +47,7 @@ class _ImageGridBodyState extends State<ImageGridBody> {
     super.dispose();
   }
 
-  // Provides keyboard shortcut handling for selection.
+  // 提供选择的键盘快捷键处理
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
@@ -113,7 +114,7 @@ class _ImageGridBodyState extends State<ImageGridBody> {
     });
   }
 
-  // Displays an overlay while controller is in a loading state.
+  // 在控制器处于加载状态时显示覆盖层
   Widget _buildLoadingOverlay(FThemeData theme) {
     if (!controller.isLoading.value) return const SizedBox.shrink();
     final messageKey = controller.loadingMessageKey.value;
@@ -155,6 +156,7 @@ class _ImageGridBodyState extends State<ImageGridBody> {
   }
 }
 
+/// 全选意图
 class SelectAllIntent extends Intent {
   const SelectAllIntent();
 }

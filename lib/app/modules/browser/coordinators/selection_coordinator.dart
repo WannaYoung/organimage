@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:get/get.dart';
 
+/// 选择协调器，管理图片选择的状态和逻辑
 class SelectionCoordinator {
   SelectionCoordinator({
     required this.selectedImages,
@@ -13,6 +14,7 @@ class SelectionCoordinator {
 
   String? _lastSelectedImagePath;
 
+  /// 切换图片选中状态
   void toggleImageSelection(String imagePath) {
     if (selectedImages.contains(imagePath)) {
       selectedImages.remove(imagePath);
@@ -22,6 +24,7 @@ class SelectionCoordinator {
     _lastSelectedImagePath = imagePath;
   }
 
+  /// 选择单张图片
   void selectSingleImage(String imagePath) {
     selectedImages
       ..clear()
@@ -29,6 +32,7 @@ class SelectionCoordinator {
     _lastSelectedImagePath = imagePath;
   }
 
+  /// 选择范围到指定图片
   void selectRangeTo(String imagePath, {required bool additive}) {
     final lastPath = _lastSelectedImagePath;
     final paths = imageFiles.map((e) => e.path).toList();
@@ -70,6 +74,7 @@ class SelectionCoordinator {
     _lastSelectedImagePath = imagePath;
   }
 
+  /// 处理图片点击选择
   void handleImageTapSelection(
     String imagePath, {
     required bool isCtrlPressed,
@@ -88,11 +93,13 @@ class SelectionCoordinator {
     selectSingleImage(imagePath);
   }
 
+  /// 清除选择
   void clearSelection() {
     selectedImages.clear();
     _lastSelectedImagePath = null;
   }
 
+  /// 选择所有图片
   void selectAllImages() {
     final all = imageFiles.map((e) => e.path).toList();
     selectedImages
@@ -101,6 +108,7 @@ class SelectionCoordinator {
     _lastSelectedImagePath = all.isNotEmpty ? all.last : null;
   }
 
+  /// 应用拖拽选择
   void applyDragSelection(
     List<String> paths, {
     required bool additive,

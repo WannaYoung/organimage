@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// 应用主题配置类
 class AppTheme {
+  /// 浅色主题
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -28,6 +30,7 @@ class AppTheme {
     );
   }
 
+  /// 深色主题
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,

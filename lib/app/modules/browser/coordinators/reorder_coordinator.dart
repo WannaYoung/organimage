@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../services/renumber_service.dart';
 
+/// 重排序协调器，管理图片拖拽重排序的状态和逻辑
 class ReorderCoordinator {
   ReorderCoordinator({
     required this.imageFiles,
@@ -32,6 +33,7 @@ class ReorderCoordinator {
   String? _reorderLastTargetPath;
   bool _reorderCommitted = false;
 
+  /// 启动重排序模式
   void startReorder(String imagePath) {
     if (!canReorderInCurrentFolder()) return;
     _reorderDraggingPath = imagePath;
@@ -41,6 +43,7 @@ class ReorderCoordinator {
     isReordering.value = true;
   }
 
+  /// 预览重排序到目标位置
   void previewReorderTo(String targetImagePath) {
     if (!isReordering.value) return;
     final draggingPath = _reorderDraggingPath;
@@ -71,6 +74,7 @@ class ReorderCoordinator {
     imageFiles.assignAll(paths.map((p) => File(p)).toList());
   }
 
+  /// 取消重排序预览
   void cancelReorderPreview() {
     if (!isReordering.value) return;
     if (_reorderCommitted) return;
@@ -83,6 +87,7 @@ class ReorderCoordinator {
     isReordering.value = false;
   }
 
+  /// 提交重排序并重新编号
   void commitReorderAndRenumber() {
     _commitReorderAndRenumberAsync();
   }
@@ -146,6 +151,7 @@ class ReorderCoordinator {
     }
   }
 
+  /// 处理重排序拖拽结束
   void handleReorderDragEnd({required bool wasAccepted}) {
     if (_reorderCommitted) return;
     if (!isReordering.value) return;
@@ -156,6 +162,7 @@ class ReorderCoordinator {
     }
   }
 
+  /// 接受拖放后结束重排序
   void endReorderAfterAcceptedDrop() {
     if (!isReordering.value) return;
     if (_reorderCommitted) return;

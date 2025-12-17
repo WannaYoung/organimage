@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../services/directory_service.dart';
 import '../services/thumbnail_service.dart';
 
+/// 目录加载器，负责加载和缓存目录内容
 class BrowserDirectoryLoader {
   final DirectoryService directoryService;
   final ThumbnailService thumbnailService;
@@ -54,7 +55,7 @@ class BrowserDirectoryLoader {
   final List<String> folderImageCacheOrder = <String>[];
   static const int folderImageCacheCapacity = 8;
 
-  // Initializes controller state from navigation arguments.
+  /// 从导航参数初始化控制器状态
   void onInitFromArgs(
     Map<String, dynamic>? args, {
     required void Function(String path) setRootPath,
@@ -67,7 +68,7 @@ class BrowserDirectoryLoader {
     }
   }
 
-  // Sets the root folder and loads its content.
+  /// 设置根文件夹并加载其内容
   void setRootPath(
     String path, {
     required void Function() loadCurrentDirectory,
@@ -77,7 +78,7 @@ class BrowserDirectoryLoader {
     loadCurrentDirectory();
   }
 
-  // Navigates to a folder and triggers directory loading.
+  /// 导航到文件夹并触发目录加载
   void navigateToFolder(
     String folderPath, {
     required void Function() loadCurrentDirectory,
@@ -86,7 +87,7 @@ class BrowserDirectoryLoader {
     loadCurrentDirectory();
   }
 
-  // Triggers a refresh of the currently selected folder.
+  /// 触发当前选中文件夹的刷新
   void loadCurrentDirectory({
     required Future<void> Function(int requestId) refreshFolderMetaCacheAsync,
   }) {
@@ -95,7 +96,7 @@ class BrowserDirectoryLoader {
     );
   }
 
-  // Loads subfolders and image files for the current folder with request cancellation.
+  /// 加载当前文件夹的子文件夹和图片文件，支持请求取消
   Future<void> _loadCurrentDirectoryAsync({
     required Future<void> Function(int requestId) refreshFolderMetaCacheAsync,
   }) async {
@@ -156,7 +157,7 @@ class BrowserDirectoryLoader {
     }
   }
 
-  // Reloads the UI after reorder commit and refreshes thumbnail/meta caches.
+  /// 重排序提交后重新加载UI并刷新缩略图/元数据缓存
   Future<void> reloadAfterReorderCommit({
     required Future<(int, String?)> Function(String folderPath) getFolderMeta,
   }) async {
@@ -176,7 +177,7 @@ class BrowserDirectoryLoader {
     folderPreviewImages[folder] = meta.$2;
   }
 
-  // Refreshes cached folder meta (count/preview) for root and its subfolders.
+  /// 刷新根目录及其子文件夹的缓存元数据（数量/预览图）
   Future<void> refreshFolderMetaCacheAsync(
     int requestId, {
     required Future<Map<String, (int, String?)>> Function(
@@ -204,17 +205,17 @@ class BrowserDirectoryLoader {
     folderPreviewImages.assignAll(nextPreviews);
   }
 
-  // Returns cached image count for a folder.
+  /// 返回文件夹的缓存图片数量
   int getFolderFileCount(String folderPath) {
     return folderFileCounts[folderPath] ?? 0;
   }
 
-  // Returns cached preview image path for a folder.
+  /// 返回文件夹的缓存预览图路径
   String? getFolderPreviewImage(String folderPath) {
     return folderPreviewImages[folderPath];
   }
 
-  // Checks whether two file lists represent the same ordered set of paths.
+  /// 检查两个文件列表是否表示相同的有序路径集
   bool areSamePaths(List<FileSystemEntity> a, List<FileSystemEntity> b) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
@@ -224,7 +225,7 @@ class BrowserDirectoryLoader {
     return true;
   }
 
-  // Inserts/updates folder cache and enforces LRU capacity.
+  /// 插入/更新文件夹缓存并执行LRU容量限制
   void putFolderCache(String folderPath, List<FileSystemEntity> files) {
     folderImageCache[folderPath] = files;
     folderImageCacheOrder.remove(folderPath);
@@ -236,19 +237,19 @@ class BrowserDirectoryLoader {
     }
   }
 
-  // Invalidates cached image list for a folder.
+  /// 使文件夹的缓存图片列表失效
   void invalidateFolderCache(String folderPath) {
     folderImageCache.remove(folderPath);
     folderImageCacheOrder.remove(folderPath);
   }
 
-  // Clears Flutter image cache to force reload after filesystem changes.
+  /// 清除Flutter图片缓存以在文件系统更改后强制重新加载
   void clearImageCache() {
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();
   }
 
-  // Current folder display name.
+  /// 当前文件夹显示名称
   String getCurrentFolderName() {
     final path = currentPath.value;
     if (path == null) return '';

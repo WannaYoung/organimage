@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../../controllers/browser_controller.dart';
 import '../image_thumbnail/image_thumbnail.dart';
 
+/// 图片网格交互组件，处理拖拽选择和外部文件拖放
 class ImageGridInteractive extends StatefulWidget {
   final BrowserController controller;
   final ScrollController scrollController;
@@ -91,7 +92,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
         return dropWrapped;
       }
 
-      // Reorder drop target: commit reorder when dropping within the grid.
+      // 重排序拖放目标：在网格内拖放时提交重排序
       return DragTarget<List<String>>(
         onWillAcceptWithDetails: (details) {
           return controller.isReordering.value &&
@@ -107,7 +108,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     });
   }
 
-  // Wraps the child with a desktop external file drop target.
+  // 使用桌面外部文件拖放目标包裹子组件
   Widget _wrapWithExternalDropTarget(Widget child) {
     return DropTarget(
       onDragEntered: (details) {
@@ -131,7 +132,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     );
   }
 
-  // Overlay shown when user is dragging external files over the grid.
+  // 用户将外部文件拖拽到网格上时显示的覆盖层
   Widget _buildExternalDragOverlay(FThemeData theme) {
     if (!_isExternalDragging) return const SizedBox.shrink();
     return Positioned.fill(
@@ -156,7 +157,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     );
   }
 
-  // Drag-select layer for rectangular selection on empty grid area.
+  // 空白网格区域的矩形选择拖拽层
   Widget _buildDragSelectListenerLayer() {
     return Positioned.fill(
       child: Listener(
@@ -249,7 +250,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     );
   }
 
-  // Selection rectangle overlay (rubber band).
+  // 选择矩形覆盖层（框选）
   Widget _buildSelectionOverlay(FThemeData theme) {
     final rect = _getSelectionRect();
     if (rect == null) return const SizedBox.shrink();
@@ -270,7 +271,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     );
   }
 
-  // Computes the selection rectangle in stack-local coordinates.
+  // 计算堆栈本地坐标中的选择矩形
   Rect? _getSelectionRect() {
     final start = _dragStartLocal;
     final current = _dragCurrentLocal;
@@ -284,7 +285,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     return Rect.fromLTRB(left, top, right, bottom);
   }
 
-  // Returns true if the pointer is currently over any grid item.
+  // 如果指针当前在任何网格项上则返回true
   bool _isPointerOnAnyItem(Offset globalPosition) {
     final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (stackBox == null) return false;
@@ -309,7 +310,7 @@ class _ImageGridInteractiveState extends State<ImageGridInteractive> {
     return false;
   }
 
-  // Collects image paths whose item bounds overlap with the selection rectangle.
+  // 收集与选择矩形重叠的图片路径
   List<String> _getPathsIntersectingRect(Rect selectionRect) {
     final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (stackBox == null) return <String>[];

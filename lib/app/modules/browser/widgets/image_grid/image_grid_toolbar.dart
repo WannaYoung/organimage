@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../../../core/constants.dart';
 import '../../controllers/browser_controller.dart';
 
+/// 图片网格工具栏组件，包含面包屑导航、计数器和控件
 class ImageGridToolbar extends StatelessWidget {
   final BrowserController controller;
   final FContinuousSliderController sliderController;
@@ -16,7 +17,7 @@ class ImageGridToolbar extends StatelessWidget {
     required this.sliderController,
   });
 
-  // Builds the top toolbar including breadcrumb, counters and controls.
+  // 构建顶部工具栏，包含面包屑、计数器和控件
   @override
   Widget build(BuildContext context) {
     final theme = FTheme.of(context);
@@ -24,12 +25,12 @@ class ImageGridToolbar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
-          // Breadcrumb navigation.
+          // 面包屑导航
           Expanded(child: Obx(() => _buildBreadcrumb(context))),
 
           const SizedBox(width: 8),
 
-          // Selection info.
+          // 选择信息
           Obx(() {
             if (controller.selectedImages.isNotEmpty) {
               return FBadge(
@@ -66,7 +67,7 @@ class ImageGridToolbar extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // Image count.
+          // 图片数量
           Obx(
             () => FBadge(
               style: FBadgeStyle.secondary(),
@@ -90,7 +91,7 @@ class ImageGridToolbar extends StatelessWidget {
 
           const SizedBox(width: 16),
 
-          // Thumbnail size slider.
+          // 缩略图大小滑块
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
             decoration: BoxDecoration(
@@ -141,7 +142,7 @@ class ImageGridToolbar extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          // Refresh button.
+          // 刷新按钮
           FTooltip(
             tipBuilder: (context, _) => Text('refresh'.tr),
             child: FButton.icon(
@@ -159,7 +160,7 @@ class ImageGridToolbar extends StatelessWidget {
     );
   }
 
-  // Builds breadcrumb items from root to current directory.
+  // 构建从根目录到当前目录的面包屑项
   Widget _buildBreadcrumb(BuildContext context) {
     final currentPath = controller.currentPath.value;
     final rootPath = controller.rootPath.value;

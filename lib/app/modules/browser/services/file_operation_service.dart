@@ -5,27 +5,34 @@ import 'package:path/path.dart' as p;
 
 import 'batch_operation_result.dart';
 
+/// 文件操作服务，提供文件的创建、重命名、删除、移动等操作
 class FileOperationService {
+  /// 创建文件夹
   Future<(bool, String)> createFolder(String parentPath, String folderName) {
     return Isolate.run(() => _createFolderSync(parentPath, folderName));
   }
 
+  /// 重命名文件
   Future<(bool, String)> renameFile(String filePath, String newName) {
     return Isolate.run(() => _renameFileSync(filePath, newName));
   }
 
+  /// 删除文件
   Future<(bool, String)> deleteFile(String filePath) {
     return Isolate.run(() => _deletePathSync(filePath, isFolder: false));
   }
 
+  /// 删除文件夹
   Future<(bool, String)> deleteFolder(String folderPath) {
     return Isolate.run(() => _deletePathSync(folderPath, isFolder: true));
   }
 
+  /// 在系统文件管理器中打开
   Future<(bool, String)> openInFinder(String path) {
     return Isolate.run(() => _openInFinderSync(path));
   }
 
+  /// 导入外部图片到文件夹（过滤非图片文件）
   Future<BatchOperationResult> importExternalImagesToFolderFiltered(
     List<String> candidatePaths,
     String folderPath, {
@@ -58,6 +65,7 @@ class FileOperationService {
     );
   }
 
+  /// 移动文件到文件夹（重命名）
   Future<BatchOperationResult> moveFilesToFolder(
     List<String> filePaths,
     String folderPath,
@@ -75,6 +83,7 @@ class FileOperationService {
     );
   }
 
+  /// 移动文件到文件夹（保持原名）
   Future<BatchOperationResult> moveFilesToFolderKeepName(
     List<String> filePaths,
     String folderPath,
@@ -92,6 +101,7 @@ class FileOperationService {
     );
   }
 
+  /// 批量删除文件
   Future<BatchOperationResult> deleteFiles(List<String> filePaths) async {
     if (filePaths.isEmpty) return BatchOperationResult.empty;
 
@@ -120,6 +130,69 @@ class FileOperationService {
   } catch (e) {
     return (false, e.toString());
   }
+}
+
+(List<String>, List<String>, List<String>) _movePathsToTrashWindowsSync(
+  List<String> paths,
+) {
+  final succeeded = <String>[];
+  final failed = <String>[];
+  final errors = <String>[];
+
+  final existingPaths = <String>[];
+  for (final path in paths) {
+    if (File(path).existsSync() || Directory(path).existsSync()) {
+      existingPaths.add(path);
+    } else {
+      failed.add(path);
+      errors.add('error_file_not_exist');
+    }
+  }
+
+  if (existingPaths.isEmpty) {
+    return (succeeded, failed, errors);
+  }
+
+  final quoted = existingPaths
+      .map((p) => "'${p.replaceAll("'", "''")}'")
+      .join(',');
+  final itemsArray = '@($quoted)';
+  const options = 0x414;
+
+  final command =
+      "try { "
+      "\$shell = New-Object -ComObject Shell.Application; "
+      "\$recycleBin = \$shell.Namespace(0xA); "
+      "\$items = $itemsArray; "
+      "\$recycleBin.MoveHere(\$items, $options); "
+      "exit 0 "
+      "} catch { exit 1 }";
+
+  final result = Process.runSync('powershell', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    command,
+  ]);
+
+  if (result.exitCode != 0) {
+    for (final p in existingPaths) {
+      failed.add(p);
+      errors.add('error_trash_failed');
+    }
+    return (succeeded, failed, errors);
+  }
+
+  for (final p in existingPaths) {
+    if (File(p).existsSync() || Directory(p).existsSync()) {
+      failed.add(p);
+      errors.add('error_trash_failed');
+    } else {
+      succeeded.add(p);
+    }
+  }
+
+  return (succeeded, failed, errors);
 }
 
 (bool, String) _renameFileSync(String filePath, String newName) {
@@ -241,7 +314,7 @@ int _getNextFileNumberSync(String folderPath, String folderName) {
       }
     }
   } catch (e) {
-    // ignore
+    // 忽略
   }
 
   return maxNum + 1;
@@ -357,6 +430,14 @@ int _getNextFileNumberSync(String folderPath, String folderName) {
   final succeeded = <String>[];
   final failed = <String>[];
   final errors = <String>[];
+
+  if (Platform.isWindows) {
+    final (s, f, e) = _movePathsToTrashWindowsSync(filePaths);
+    succeeded.addAll(s);
+    failed.addAll(f);
+    errors.addAll(e);
+    return (succeeded, failed, errors);
+  }
 
   for (final filePath in filePaths) {
     final (success, result) = _deletePathSync(filePath, isFolder: false);

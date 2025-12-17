@@ -12,11 +12,11 @@ import 'app/routes/app_pages.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Tune image cache for large thumbnail grids.
+  // 为大型缩略图网格调整图片缓存
   PaintingBinding.instance.imageCache.maximumSize = 2000;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 256 << 20;
 
-  // Initialize window manager for desktop
+  // 初始化桌面窗口管理器
   await windowManager.ensureInitialized();
   final windowOptions = WindowOptions(
     minimumSize: const Size(800, 600),

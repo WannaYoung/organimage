@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../controllers/browser_controller.dart';
 import 'image_preview.dart';
 
+/// 文件夹项组件，显示单个文件夹的信息和操作
 class FolderItem extends StatefulWidget {
   final Directory folder;
   final BrowserController controller;
@@ -58,11 +60,11 @@ class _FolderItemState extends State<FolderItem>
 
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
-        // Accept if there are files being dragged
+        // 如果有文件被拖拽则接受
         return details.data.isNotEmpty;
       },
       onAcceptWithDetails: (details) {
-        // Use the dragged data directly, which now includes auto-selected images
+        // 直接使用拖拽的数据，包含自动选中的图片
         widget.controller.endReorderAfterAcceptedDrop();
         widget.controller.moveSelectedToFolder(widget.folder.path);
       },
@@ -135,7 +137,7 @@ class _FolderItemState extends State<FolderItem>
                 ),
                 child: Row(
                   children: [
-                    // Thumbnail preview or folder icon
+                    // 缩略图预览或文件夹图标
                     Container(
                       width: 45,
                       height: 45,
@@ -214,6 +216,17 @@ class _FolderItemState extends State<FolderItem>
           controller: textController,
           autofocus: true,
           hint: 'enter_new_name'.tr,
+          textInputAction: TextInputAction.done,
+          onSubmit: (value) {
+            final newName = value.trim();
+            if (newName.isNotEmpty && newName != currentName) {
+              widget.controller.renameFolderWithContents(
+                widget.folder.path,
+                newName,
+              );
+            }
+            Navigator.of(context).pop();
+          },
         ),
         direction: Axis.horizontal,
         actions: [

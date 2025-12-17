@@ -7,6 +7,7 @@ import '../../controllers/browser_controller.dart';
 import 'image_grid_body.dart';
 import 'image_grid_toolbar.dart';
 
+/// 图片网格组件，显示图片列表和工具栏
 class ImageGrid extends StatefulWidget {
   final BrowserController controller;
 
@@ -17,7 +18,7 @@ class ImageGrid extends StatefulWidget {
 }
 
 class _ImageGridState extends State<ImageGrid> {
-  // Controller used to map slider selection to thumbnail size.
+  // 用于将滑块选择映射到缩略图大小的控制器
   late final FContinuousSliderController _sliderController;
 
   BrowserController get controller => widget.controller;
@@ -41,7 +42,7 @@ class _ImageGridState extends State<ImageGrid> {
   }
 
   @override
-  // Composes toolbar and grid body.
+  // 组合工具栏和网格主体
   Widget build(BuildContext context) {
     return Column(
       children: [

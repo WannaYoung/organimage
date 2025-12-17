@@ -6,6 +6,7 @@ import '../services/file_operation_service.dart';
 import '../services/renumber_service.dart';
 import '../services/thumbnail_service.dart';
 
+/// 浏览器模块绑定，注册依赖注入
 class BrowserBinding extends Bindings {
   @override
   void dependencies() {

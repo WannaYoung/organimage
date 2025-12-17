@@ -6,7 +6,7 @@ const _successColor = Color(0xFF22C55E);
 const _errorColor = Color(0xFFEF4444);
 const _infoColor = Color(0xFF3B82F6);
 
-/// Show a success toast at bottom center
+/// 在底部中央显示成功提示
 void showSuccessToast(String message) {
   final context = Get.context;
   if (context == null) return;
@@ -19,7 +19,7 @@ void showSuccessToast(String message) {
   );
 }
 
-/// Show an error toast at bottom center
+/// 在底部中央显示错误提示
 void showErrorToast(String message) {
   final context = Get.context;
   if (context == null) return;
@@ -32,7 +32,7 @@ void showErrorToast(String message) {
   );
 }
 
-/// Show an info toast at bottom center
+/// 在底部中央显示信息提示
 void showInfoToast(String message) {
   final context = Get.context;
   if (context == null) return;

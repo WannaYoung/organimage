@@ -11,7 +11,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 
 import '../../../core/utils/format_utils.dart';
 
-/// Show image preview dialog with navigation and zoom
+/// 显示图片预览对话框，支持导航和缩放
 void showImagePreview(
   BuildContext context, {
   required String imagePath,
@@ -28,6 +28,7 @@ void showImagePreview(
   );
 }
 
+/// 图片预览对话框组件
 class ImagePreviewDialog extends StatefulWidget {
   final List<String> imageList;
   final int initialIndex;
@@ -156,7 +157,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
         decoration: const BoxDecoration(color: Color(0x00000000)),
         child: Stack(
           children: [
-            // Image gallery with mouse wheel zoom support
+            // 图片画廊，支持鼠标滚轮缩放
             Listener(
               onPointerSignal: (event) {
                 if (event is PointerScrollEvent) {
@@ -200,7 +201,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
               ),
             ),
 
-            // Top bar
+            // 顶部栏
             Positioned(
               top: 0,
               left: 0,
@@ -253,7 +254,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
               ),
             ),
 
-            // Previous button
+            // 上一张按钮
             if (widget.imageList.length > 1 && _currentIndex > 0)
               Positioned(
                 left: 16,
@@ -267,7 +268,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                 ),
               ),
 
-            // Next button
+            // 下一张按钮
             if (widget.imageList.length > 1 &&
                 _currentIndex < widget.imageList.length - 1)
               Positioned(
@@ -282,7 +283,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                 ),
               ),
 
-            // Bottom bar with zoom controls
+            // 底部栏，包含缩放控件
             Positioned(
               bottom: 0,
               left: 0,
@@ -304,7 +305,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Zoom out button
+                      // 缩小按钮
                       FTooltip(
                         tipBuilder: (context, _) => const Text('-'),
                         child: FButton(
@@ -316,7 +317,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                           ),
                         ),
                       ),
-                      // Zoom percentage
+                      // 缩放百分比
                       Container(
                         width: 60,
                         alignment: Alignment.center,
@@ -328,7 +329,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                           ),
                         ),
                       ),
-                      // Zoom in button
+                      // 放大按钮
                       FTooltip(
                         tipBuilder: (context, _) => const Text('+'),
                         child: FButton(
@@ -341,7 +342,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Reset button
+                      // 重置按钮
                       FTooltip(
                         tipBuilder: (context, _) => Text('reset'.tr),
                         child: FButton(
@@ -354,7 +355,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
                         ),
                       ),
                       const SizedBox(width: 24),
-                      // Hints
+                      // 提示
                       _HintChip(icon: FIcons.mouse, label: 'scroll_zoom'.tr),
                     ],
                   ),

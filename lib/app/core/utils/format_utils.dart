@@ -1,3 +1,4 @@
+/// 格式化文件大小为可读字符串
 String formatFileSize(int size) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   double s = size.toDouble();

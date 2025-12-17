@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../coordinators/selection_coordinator.dart';
 
+/// 选择操作处理器，处理图片选择相关操作
 class BrowserSelectionActions {
   final RxList<String> selectedImages;
   final RxList<FileSystemEntity> imageFiles;
@@ -18,28 +19,28 @@ class BrowserSelectionActions {
     required this.update,
   });
 
-  // Toggles the selection state of a single image and triggers minimal UI update.
+  /// 切换单张图片的选中状态并触发最小UI更新
   void toggleImageSelection(String imagePath) {
     final before = selectedImages.toSet();
     selectionCoordinator.toggleImageSelection(imagePath);
     _updateChanged(before);
   }
 
-  // Selects a single image (clears previous selection) and triggers minimal UI update.
+  /// 选择单张图片（清除之前的选择）并触发最小UI更新
   void selectSingleImage(String imagePath) {
     final before = selectedImages.toSet();
     selectionCoordinator.selectSingleImage(imagePath);
     _updateChanged(before);
   }
 
-  // Selects a range to the given image path.
+  /// 选择到给定图片路径的范围
   void selectRangeTo(String imagePath, {required bool additive}) {
     final before = selectedImages.toSet();
     selectionCoordinator.selectRangeTo(imagePath, additive: additive);
     _updateChanged(before);
   }
 
-  // Handles click selection with modifier keys.
+  /// 处理带修饰键的点击选择
   void handleImageTapSelection(
     String imagePath, {
     required bool isCtrlPressed,
@@ -54,7 +55,7 @@ class BrowserSelectionActions {
     _updateChanged(before);
   }
 
-  // Clears selection and triggers UI update for previously selected items.
+  /// 清除选择并为之前选中的项目触发UI更新
   void clearSelection() {
     final before = selectedImages.toSet();
     selectionCoordinator.clearSelection();
@@ -63,14 +64,14 @@ class BrowserSelectionActions {
     }
   }
 
-  // Selects all images in current folder.
+  /// 选择当前文件夹中的所有图片
   void selectAllImages() {
     final before = selectedImages.toSet();
     selectionCoordinator.selectAllImages();
     _updateChanged(before);
   }
 
-  // Applies drag selection (rubber band selection).
+  /// 应用拖拽选择（框选）
   void applyDragSelection(
     List<String> paths, {
     required bool additive,

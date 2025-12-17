@@ -7,6 +7,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/utils/toast_utils.dart';
 import '../../../routes/app_pages.dart';
 
+/// 主页控制器，管理文件夹选择和最近文件夹
 class HomeController extends GetxController {
   final Rx<String?> selectedPath = Rx<String?>(null);
   final RxBool isLoading = false.obs;
@@ -53,10 +54,10 @@ class HomeController extends GetxController {
   }
 
   Future<void> openRecentFolder(String path) async {
-    // Check if folder still exists
+    // 检查文件夹是否仍然存在
     if (!await Directory(path).exists()) {
       showErrorToast('error_folder_not_exist'.tr);
-      // Remove from recent folders
+      // 从最近文件夹中移除
       await _removeInvalidFolder(path);
       return;
     }
@@ -66,16 +67,16 @@ class HomeController extends GetxController {
   Future<void> _removeInvalidFolder(String path) async {
     recentFolders.remove(path);
     final config = await StorageService.getRecentFolders();
-    // Config is already updated, just refresh the list
+    // 配置已更新，只需刷新列表
     recentFolders.value = config.where((f) => f != path).toList();
   }
 
   Future<void> _openFolder(String path) async {
     selectedPath.value = path;
-    // Save to recent folders
+    // 保存到最近文件夹
     await StorageService.addRecentFolder(path);
     await _loadRecentFolders();
-    // Navigate to browser page with the selected path
+    // 使用选中的路径导航到浏览器页面
     Get.toNamed(
       Routes.browser,
       arguments: {'rootPath': path, 'useThumbnails': useThumbnails.value},

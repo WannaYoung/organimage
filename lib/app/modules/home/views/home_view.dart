@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/widgets.dart';
 
+/// 主页视图，显示应用介绍和文件夹选择
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
 
@@ -15,7 +16,7 @@ class HomeView extends GetView<HomeController> {
     return FScaffold(
       child: Stack(
         children: [
-          // Main content
+          // 主要内容
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
@@ -24,11 +25,11 @@ class HomeView extends GetView<HomeController> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App icon with gradient background
+                    // 带渐变背景的应用图标
                     _buildAppIcon(theme),
                     const SizedBox(height: 32),
 
-                    // Title
+                    // 标题
                     Text(
                       'app_name'.tr,
                       style: theme.typography.xl3.copyWith(
@@ -37,7 +38,7 @@ class HomeView extends GetView<HomeController> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Subtitle
+                    // 副标题
                     Text(
                       'app_subtitle'.tr,
                       style: theme.typography.base.copyWith(
@@ -47,11 +48,11 @@ class HomeView extends GetView<HomeController> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Feature hints
+                    // 功能提示
                     _buildFeatureHints(theme),
                     const SizedBox(height: 40),
 
-                    // Buttons row
+                    // 按钮行
                     _buildActionButtons(theme),
                   ],
                 ),
@@ -59,7 +60,7 @@ class HomeView extends GetView<HomeController> {
             ),
           ),
 
-          // Settings button in top right with popover
+          // 右上角带弹出框的设置按钮
           const Positioned(top: 16, right: 16, child: SettingsPopover()),
         ],
       ),
@@ -132,7 +133,7 @@ class HomeView extends GetView<HomeController> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        // Select folder button
+        // 选择文件夹按钮
         Obx(
           () => FButton(
             onPress: controller.isLoading.value
@@ -146,7 +147,7 @@ class HomeView extends GetView<HomeController> {
             ),
           ),
         ),
-        // Recent folders button with popover
+        // 带弹出框的最近文件夹按钮
         Obx(
           () => controller.recentFolders.isNotEmpty
               ? const RecentFoldersPopover()

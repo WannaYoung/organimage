@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../../core/theme_controller.dart';
 import '../controllers/home_controller.dart';
 
+/// 设置弹出框组件
 class SettingsPopover extends StatelessWidget {
   const SettingsPopover({super.key});
 
@@ -40,7 +41,7 @@ class SettingsPopover extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // 标题
               Row(
                 children: [
                   Icon(
@@ -62,13 +63,13 @@ class SettingsPopover extends StatelessWidget {
               const FDivider(),
               const SizedBox(height: 12),
 
-              // Theme mode section
+              // 主题模式部分
               _buildThemeModeSection(theme, themeController),
               const SizedBox(height: 12),
               const FDivider(),
               const SizedBox(height: 12),
 
-              // Language section
+              // 语言部分
               _buildLanguageSection(theme, themeController),
               const SizedBox(height: 12),
               const FDivider(),
@@ -79,7 +80,7 @@ class SettingsPopover extends StatelessWidget {
               const FDivider(),
               const SizedBox(height: 12),
 
-              // Theme color section
+              // 主题颜色部分
               _buildThemeColorSection(theme, themeController),
             ],
           ),

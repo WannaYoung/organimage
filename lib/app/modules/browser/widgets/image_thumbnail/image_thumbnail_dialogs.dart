@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../controllers/browser_controller.dart';
 
+/// 移动到文件夹对话框组件
 class MoveToFolderDialog extends StatelessWidget {
   final BrowserController controller;
   final String? currentPath;
@@ -15,7 +16,7 @@ class MoveToFolderDialog extends StatelessWidget {
     required this.currentPath,
   });
 
-  // Builds a folder picker dialog for moving the current selection.
+  // 构建用于移动当前选中项的文件夹选择对话框
   @override
   Widget build(BuildContext context) {
     final rootPath = controller.rootPath.value;
@@ -30,32 +31,30 @@ class MoveToFolderDialog extends StatelessWidget {
 
     return FDialog(
       title: Text('choose_target_folder'.tr),
-      body: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 360),
-        child: ListView.separated(
-          shrinkWrap: true,
-          itemCount: targets.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final target = targets[index];
-            final isRoot = target == rootPath;
-            final name = p.basename(target);
-            return _TargetFolderItem(
-              name: name,
-              path: target,
-              isRoot: isRoot,
-              onTap: () {
-                Navigator.of(context).pop();
-                if (isRoot) {
-                  controller.moveSelectedToRootFolder();
-                } else {
-                  controller.moveSelectedToFolder(target);
-                }
-              },
-            );
-          },
-        ),
+      body: ListView.separated(
+        shrinkWrap: true,
+        itemCount: targets.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final target = targets[index];
+          final isRoot = target == rootPath;
+          final name = p.basename(target);
+          return _TargetFolderItem(
+            name: name,
+            path: target,
+            isRoot: isRoot,
+            onTap: () {
+              Navigator.of(context).pop();
+              if (isRoot) {
+                controller.moveSelectedToRootFolder();
+              } else {
+                controller.moveSelectedToFolder(target);
+              }
+            },
+          );
+        },
       ),
+
       direction: Axis.horizontal,
       actions: [
         FButton(
@@ -80,7 +79,7 @@ class _TargetFolderItem extends StatelessWidget {
     required this.onTap,
   });
 
-  // Renders one selectable folder entry.
+  // 渲染一个可选择的文件夹条目
   @override
   Widget build(BuildContext context) {
     final theme = FTheme.of(context);
@@ -141,6 +140,7 @@ class _TargetFolderItem extends StatelessWidget {
   }
 }
 
+/// 删除图片确认对话框组件
 class DeleteImageConfirmDialog extends StatelessWidget {
   final BrowserController controller;
   final String imagePath;
@@ -153,7 +153,7 @@ class DeleteImageConfirmDialog extends StatelessWidget {
     required this.fileName,
   });
 
-  // Confirms deleting a single image.
+  // 确认删除单张图片
   @override
   Widget build(BuildContext context) {
     return FDialog(
@@ -188,6 +188,7 @@ class DeleteImageConfirmDialog extends StatelessWidget {
   }
 }
 
+/// 删除选中项确认对话框组件
 class DeleteSelectedConfirmDialog extends StatelessWidget {
   final BrowserController controller;
   final int count;
@@ -198,7 +199,7 @@ class DeleteSelectedConfirmDialog extends StatelessWidget {
     required this.count,
   });
 
-  // Confirms deleting the current selection.
+  // 确认删除当前选中项
   @override
   Widget build(BuildContext context) {
     return FDialog(

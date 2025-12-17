@@ -15,6 +15,7 @@ import '../services/file_operation_service.dart';
 import '../services/renumber_service.dart';
 import '../services/thumbnail_service.dart';
 
+/// 浏览器主控制器，管理文件浏览、选择、排序等核心功能
 class BrowserController extends GetxController {
   BrowserController({
     required this.directoryService,
@@ -111,31 +112,31 @@ class BrowserController extends GetxController {
   late final BrowserFileOps _fileOps;
   late final BrowserReorderActions _reorderActions;
 
-  // Root path selected by user
+  // 用户选择的根目录路径
   final Rx<String?> rootPath = Rx<String?>(null);
 
-  // Current directory path (for displaying images)
+  // 当前目录路径（用于展示图片）
   final Rx<String?> currentPath = Rx<String?>(null);
 
-  // Subdirectories in ROOT path (always show root's subfolders)
+  // 根目录下的子目录（始终展示根目录的子文件夹）
   final RxList<Directory> subdirectories = <Directory>[].obs;
 
   final RxMap<String, int> folderFileCounts = <String, int>{}.obs;
   final RxMap<String, String?> folderPreviewImages = <String, String?>{}.obs;
 
-  // Image files in current selected folder
+  // 当前选中文件夹中的图片文件
   final RxList<FileSystemEntity> imageFiles = <FileSystemEntity>[].obs;
 
-  // Selected image files
+  // 已选中的图片文件
   final RxList<String> selectedImages = <String>[].obs;
 
-  // Thumbnail size
+  // 缩略图大小
   final RxDouble thumbnailSize = 120.0.obs;
 
-  // Prefer cached thumbnails (default off)
+  // 优先使用缓存缩略图（默认关闭）
   final RxBool useThumbnails = false.obs;
 
-  // Loading state
+  // 加载状态
   final RxBool isLoading = false.obs;
 
   final Rx<String?> loadingMessageKey = Rx<String?>(null);
@@ -254,7 +255,7 @@ class BrowserController extends GetxController {
     return _fileOps.moveSelectedToFolder(folderPath);
   }
 
-  /// Move selected images to root folder without renaming
+  /// 将选中的图片移动到根目录（保持原文件名）
   Future<void> moveSelectedToRootFolder() async {
     return _fileOps.moveSelectedToRootFolder();
   }
@@ -311,28 +312,28 @@ class BrowserController extends GetxController {
     _reorderActions.endReorderAfterAcceptedDrop();
   }
 
-  // Open file or folder in system file manager
+  // 在系统文件管理器中打开文件或文件夹
   Future<void> openInFinder(String path) async {
     return _fileOps.openInFinder(path);
   }
 
-  // Rename a single image
+  // 重命名单张图片
   Future<void> renameImage(String imagePath, String newName) async {
     return _fileOps.renameImage(imagePath, newName);
   }
 
-  // Delete a single image
-  // If in a subfolder, renumber remaining files after deletion
+  // 删除单张图片
+  // 若在子文件夹中，删除后对剩余文件重新编号
   Future<void> deleteImage(String imagePath) async {
     return _fileOps.deleteImage(imagePath);
   }
 
-  // Delete a folder by path
+  // 根据路径删除文件夹
   Future<void> deleteFolderByPath(String folderPath) async {
     return _fileOps.deleteFolderByPath(folderPath);
   }
 
-  // Rename folder and all its contents
+  // 重命名文件夹及其所有内容
   Future<void> renameFolderWithContents(
     String folderPath,
     String newName,

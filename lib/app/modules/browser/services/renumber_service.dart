@@ -6,7 +6,9 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/constants.dart';
 
+/// 重新编号服务，提供文件重新编号和文件夹重命名功能
 class RenumberService {
+  /// 按指定顺序重新编号文件夹中的文件
   Future<(bool, String)> renumberFilesInFolderByOrder(
     String folderPath,
     List<String> orderedFilePaths,
@@ -16,10 +18,12 @@ class RenumberService {
     );
   }
 
+  /// 重新编号文件夹中的文件
   Future<(bool, String)> renumberFilesInFolder(String folderPath) {
     return Isolate.run(() => _renumberFilesInFolderSync(folderPath));
   }
 
+  /// 重命名文件夹及其内容
   Future<(bool, String)> renameFolderWithContents(
     String folderPath,
     String newName,
@@ -115,11 +119,12 @@ File _lockFileForFolder(String folderPath) {
         lockFile.deleteSync();
       }
     } catch (_) {
-      // ignore
+      // 忽略
     }
   }
 }
 
+/// 同步重新编号文件夹中的文件
 (bool, String) _renumberFilesInFolderSync(String folderPath) {
   final dir = Directory(folderPath);
   if (!dir.existsSync()) {
@@ -175,11 +180,12 @@ File _lockFileForFolder(String folderPath) {
         lockFile.deleteSync();
       }
     } catch (_) {
-      // ignore
+      // 忽略
     }
   }
 }
 
+/// 同步重命名文件夹及其内容
 (bool, String) _renameFolderWithContentsSync(
   String folderPath,
   String newName,

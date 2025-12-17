@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../controllers/browser_controller.dart';
 import 'folder_item.dart';
 
+/// 侧边栏组件，显示文件夹列表
 class Sidebar extends StatelessWidget {
   final BrowserController controller;
 
@@ -16,7 +18,7 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // Total items = 1 (root) + subdirectories count
+      // 总项目数 = 1（根目录）+ 子目录数量
       final totalItems = 1 + controller.subdirectories.length;
 
       return FSidebar.builder(
@@ -26,10 +28,10 @@ class Sidebar extends StatelessWidget {
         itemCount: totalItems,
         itemBuilder: (context, index) {
           if (index == 0) {
-            // Root folder item
+            // 根文件夹项
             return _buildRootFolderItem(context);
           }
-          // Subfolder items
+          // 子文件夹项
           final folder = controller.subdirectories[index - 1];
           return FolderItem(folder: folder, controller: controller);
         },
@@ -46,13 +48,13 @@ class Sidebar extends StatelessWidget {
 
     return Obx(() {
       final isSelected = controller.currentPath.value == rootPath;
-      // Only accept drops when not in root directory
+      // 只有不在根目录时才接受拖放
       final canAcceptDrop = !controller.isAtRoot;
       final previewImage = controller.getFolderPreviewImage(rootPath);
 
       return DragTarget<List<String>>(
         onWillAcceptWithDetails: (details) {
-          // Only accept if not in root directory and has files
+          // 只有不在根目录且有文件时才接受
           return canAcceptDrop && details.data.isNotEmpty;
         },
         onAcceptWithDetails: (details) {
@@ -75,7 +77,7 @@ class Sidebar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Thumbnail preview or home icon
+                  // 缩略图预览或主页图标
                   Container(
                     width: 45,
                     height: 45,
@@ -144,16 +146,17 @@ class Sidebar extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     final theme = FTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 15),
+      padding: const EdgeInsets.only(top: 15, left: 12),
       child: FHeader.nested(
         prefixes: [
           FTooltip(
             tipBuilder: (context, _) => Text('back_home'.tr),
             child: FHeaderAction(
-              icon: const Icon(FIcons.house),
+              icon: Icon(FIcons.house, size: 30, color: theme.colors.primary),
               onPress: controller.goToHome,
             ),
           ),
+          const SizedBox(width: 2),
         ],
         title: Obx(
           () => Column(
@@ -208,6 +211,14 @@ class Sidebar extends StatelessWidget {
           controller: textController,
           autofocus: true,
           hint: 'enter_folder_name'.tr,
+          textInputAction: TextInputAction.done,
+          onSubmit: (value) {
+            final name = value.trim();
+            if (name.isNotEmpty) {
+              controller.createNewFolder(name);
+              Navigator.of(context).pop();
+            }
+          },
         ),
         direction: Axis.horizontal,
         actions: [

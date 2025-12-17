@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../controllers/browser_controller.dart';
 
+/// 图片缩略图内容组件，显示图片、边框和选中状态
 class ImageThumbnailContent extends StatelessWidget {
   final BrowserController controller;
   final String imagePath;
@@ -20,7 +21,7 @@ class ImageThumbnailContent extends StatelessWidget {
     required this.isSelected,
   });
 
-  // Resolves which file path should be displayed (original image or cached thumbnail).
+  // 解析应该显示哪个文件路径（原始图片或缓存的缩略图）
   String _resolveDisplayPath() {
     if (!controller.useThumbnails.value) return imagePath;
 
@@ -33,7 +34,7 @@ class ImageThumbnailContent extends StatelessWidget {
       return thumbPath;
     }
 
-    // Fallback to the other format (jpg/png) if the expected one does not exist.
+    // 如果预期的格式不存在，回退到另一种格式（jpg/png）
     if (thumbPath != null) {
       final ext = p.extension(thumbPath).toLowerCase();
       if (ext == '.jpg') {
@@ -52,7 +53,7 @@ class ImageThumbnailContent extends StatelessWidget {
     return imagePath;
   }
 
-  // Builds the thumbnail UI content including border, image, and selection overlay.
+  // 构建缩略图UI内容，包括边框、图片和选中覆盖层
   @override
   Widget build(BuildContext context) {
     final theme = FTheme.of(context);
@@ -105,7 +106,7 @@ class ImageThumbnailContent extends StatelessWidget {
                 },
               ),
             ),
-            // File name overlay at bottom.
+            // 底部文件名覆盖层
             Positioned(
               left: 0,
               right: 0,

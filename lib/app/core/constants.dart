@@ -1,4 +1,4 @@
-/// Supported image file extensions
+/// 支持的图片文件扩展名
 const List<String> imageExtensions = [
   '.png',
   '.jpg',
@@ -12,17 +12,17 @@ const List<String> imageExtensions = [
   '.svg',
 ];
 
-/// Default thumbnail size
+/// 默认缩略图尺寸
 const double defaultThumbnailSize = 120.0;
 
-/// Minimum thumbnail size
+/// 最小缩略图尺寸
 const double minThumbnailSize = 60.0;
 
-/// Maximum thumbnail size
+/// 最大缩略图尺寸
 const double maxThumbnailSize = 200.0;
 
-/// App name
+/// 应用名称
 const String appName = '图片整理';
 
-/// App version
+/// 应用版本
 const String appVersion = '1.0.0';

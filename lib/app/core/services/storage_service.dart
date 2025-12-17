@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-/// Service for storing app configuration and recent folders
+/// 存储服务，用于保存应用配置和最近打开的文件夹
 class StorageService {
   static const String _configFileName = 'config.json';
   static const int _maxRecentFolders = 10;
@@ -25,13 +25,13 @@ class StorageService {
         return json.decode(content) as Map<String, dynamic>;
       }
     } catch (e) {
-      // Ignore errors, return empty config
+      // 忽略错误，返回空配置
     }
     return {};
   }
 
   static Future<void> _saveConfig(Map<String, dynamic> config) async {
-    // Wait for any pending operation to complete
+    // 等待任何待处理的操作完成
     while (_pendingOperation != null) {
       await _pendingOperation;
     }
@@ -42,101 +42,101 @@ class StorageService {
     try {
       final path = await _configPath;
       final file = File(path);
-      // Ensure parent directory exists
+      // 确保父目录存在
       final dir = file.parent;
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
       await file.writeAsString(json.encode(config));
     } catch (e) {
-      // Ignore errors
+      // 忽略错误
     } finally {
       _pendingOperation = null;
       completer.complete();
     }
   }
 
-  /// Get list of recently opened folders
+  /// 获取最近打开的文件夹列表
   static Future<List<String>> getRecentFolders() async {
     final config = await _loadConfig();
     final folders =
         (config['recent_folders'] as List<dynamic>?)?.cast<String>() ?? [];
-    // Return all folders without checking existence
-    // macOS sandbox may prevent access check for previously opened folders
+    // 返回所有文件夹，不检查是否存在
+    // macOS 沙盒可能会阻止对之前打开的文件夹进行访问检查
     return folders.take(_maxRecentFolders).toList();
   }
 
-  /// Add a folder to recent folders list
+  /// 将文件夹添加到最近文件夹列表
   static Future<void> addRecentFolder(String folderPath) async {
     final config = await _loadConfig();
     final folders =
         (config['recent_folders'] as List<dynamic>?)?.cast<String>().toList() ??
         [];
 
-    // Remove if already exists
+    // 如果已存在则移除
     folders.remove(folderPath);
 
-    // Add to front
+    // 添加到列表前端
     folders.insert(0, folderPath);
 
-    // Limit count
+    // 限制数量
     config['recent_folders'] = folders.take(_maxRecentFolders).toList();
     await _saveConfig(config);
   }
 
-  /// Clear all recent folders
+  /// 清除所有最近文件夹
   static Future<void> clearRecentFolders() async {
     final config = await _loadConfig();
     config['recent_folders'] = <String>[];
     await _saveConfig(config);
   }
 
-  /// Get theme mode preference (null = system, 'light', 'dark')
+  /// 获取主题模式偏好（null = 跟随系统，'light'，'dark'）
   static Future<String?> getThemeMode() async {
     final config = await _loadConfig();
     return config['theme_mode'] as String?;
   }
 
-  /// Set theme mode preference
+  /// 设置主题模式偏好
   static Future<void> setThemeMode(String? mode) async {
     final config = await _loadConfig();
     config['theme_mode'] = mode;
     await _saveConfig(config);
   }
 
-  /// Get language preference
+  /// 获取语言偏好
   static Future<String?> getLanguage() async {
     final config = await _loadConfig();
     return config['language'] as String?;
   }
 
-  /// Set language preference
+  /// 设置语言偏好
   static Future<void> setLanguage(String language) async {
     final config = await _loadConfig();
     config['language'] = language;
     await _saveConfig(config);
   }
 
-  /// Get theme color preference
+  /// 获取主题颜色偏好
   static Future<String?> getThemeColor() async {
     final config = await _loadConfig();
     return config['theme_color'] as String?;
   }
 
-  /// Set theme color preference
+  /// 设置主题颜色偏好
   static Future<void> setThemeColor(String color) async {
     final config = await _loadConfig();
     config['theme_color'] = color;
     await _saveConfig(config);
   }
 
-  /// Get thumbnail mode preference
+  /// 获取缩略图模式偏好
   static Future<bool> getUseThumbnails() async {
     final config = await _loadConfig();
     return config['use_thumbnails'] as bool? ?? false;
   }
 
-  /// Set thumbnail mode preference
+  /// 设置缩略图模式偏好
   static Future<void> setUseThumbnails(bool enabled) async {
     final config = await _loadConfig();
     config['use_thumbnails'] = enabled;
@@ -157,12 +157,12 @@ class StorageService {
           try {
             await entity.delete(recursive: true);
           } catch (_) {
-            // Ignore errors
+            // 忽略错误
           }
         }
       }
     } catch (_) {
-      // Ignore errors
+      // 忽略错误
     }
   }
 }

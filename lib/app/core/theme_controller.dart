@@ -4,10 +4,10 @@ import 'package:get/get.dart';
 
 import 'services/storage_service.dart';
 
-/// Available theme colors
+/// 可用的主题颜色
 enum ThemeColor { zinc, slate, red, rose, orange, green, blue, yellow, violet }
 
-/// Theme controller for managing app theme and locale
+/// 主题控制器，用于管理应用主题和语言
 class ThemeController extends GetxController {
   final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
   final Rx<ThemeColor> themeColor = ThemeColor.blue.obs;
@@ -20,7 +20,7 @@ class ThemeController extends GetxController {
   }
 
   Future<void> _loadSettings() async {
-    // Load theme mode
+    // 加载主题模式
     final savedThemeMode = await StorageService.getThemeMode();
     if (savedThemeMode != null) {
       switch (savedThemeMode) {
@@ -35,7 +35,7 @@ class ThemeController extends GetxController {
       }
     }
 
-    // Load language
+    // 加载语言设置
     final savedLanguage = await StorageService.getLanguage();
     if (savedLanguage != null) {
       switch (savedLanguage) {
@@ -53,7 +53,7 @@ class ThemeController extends GetxController {
       locale.value = Get.locale!;
     }
 
-    // Load theme color
+    // 加载主题颜色
     final savedThemeColor = await StorageService.getThemeColor();
     if (savedThemeColor != null) {
       try {
@@ -70,7 +70,7 @@ class ThemeController extends GetxController {
   void setLocale(Locale newLocale) {
     locale.value = newLocale;
     Get.updateLocale(newLocale);
-    // Save to storage
+    // 保存到存储
     final langCode = '${newLocale.languageCode}_${newLocale.countryCode}';
     StorageService.setLanguage(langCode);
   }
@@ -103,7 +103,7 @@ class ThemeController extends GetxController {
 
   void setThemeMode(ThemeMode mode) {
     themeMode.value = mode;
-    // Save to storage
+    // 保存到存储
     String? modeStr;
     switch (mode) {
       case ThemeMode.light:
@@ -121,7 +121,7 @@ class ThemeController extends GetxController {
 
   void setThemeColor(ThemeColor color) {
     themeColor.value = color;
-    // Save to storage
+    // 保存到存储
     StorageService.setThemeColor(color.name);
   }
 

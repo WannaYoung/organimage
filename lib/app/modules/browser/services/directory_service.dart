@@ -4,12 +4,15 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/constants.dart';
 
+/// 目录服务，提供目录和文件操作的基础功能
 class DirectoryService {
+  /// 检查文件是否为图片文件
   bool isImageFile(String filePath) {
     final ext = p.extension(filePath).toLowerCase();
     return imageExtensions.contains(ext);
   }
 
+  /// 获取目录中的所有图片文件
   Future<List<FileSystemEntity>> getImageFiles(String directoryPath) async {
     final dir = Directory(directoryPath);
     if (!await dir.exists()) return <FileSystemEntity>[];
@@ -28,6 +31,7 @@ class DirectoryService {
     }
   }
 
+  /// 获取目录中的所有子目录
   Future<List<Directory>> getSubdirectories(String directoryPath) async {
     final dir = Directory(directoryPath);
     if (!await dir.exists()) return <Directory>[];
@@ -46,6 +50,7 @@ class DirectoryService {
     }
   }
 
+  /// 统计目录中的文件数量
   Future<int> countFiles(String directoryPath) async {
     final dir = Directory(directoryPath);
     if (!await dir.exists()) return 0;
@@ -63,6 +68,7 @@ class DirectoryService {
     }
   }
 
+  /// 获取目录中的第一张图片
   Future<String?> getFirstImage(String directoryPath) async {
     final dir = Directory(directoryPath);
     if (!await dir.exists()) return null;
@@ -82,12 +88,14 @@ class DirectoryService {
     }
   }
 
+  /// 获取文件夹元数据（文件数量和首张图片）
   Future<(int, String?)> getFolderMeta(String directoryPath) async {
     final count = await countFiles(directoryPath);
     final firstImage = await getFirstImage(directoryPath);
     return (count, firstImage);
   }
 
+  /// 批量获取多个文件夹的元数据
   Future<Map<String, (int, String?)>> getFolderMetas(
     List<String> folderPaths,
   ) async {

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../coordinators/reorder_coordinator.dart';
 
+/// 重排序操作处理器，处理图片拖拽重排序相关操作
 class BrowserReorderActions {
   final ReorderCoordinator reorderCoordinator;
   final RxBool isReordering;
@@ -11,32 +12,32 @@ class BrowserReorderActions {
     required this.isReordering,
   });
 
-  // Starts reorder mode for a single image.
+  /// 为单张图片启动重排序模式
   void startReorder(String imagePath) {
     reorderCoordinator.startReorder(imagePath);
   }
 
-  // Updates reorder preview when hovering over target image.
+  /// 悬停在目标图片上时更新重排序预览
   void previewReorderTo(String targetImagePath) {
     reorderCoordinator.previewReorderTo(targetImagePath);
   }
 
-  // Cancels reorder preview.
+  /// 取消重排序预览
   void cancelReorderPreview() {
     reorderCoordinator.cancelReorderPreview();
   }
 
-  // Commits reorder and triggers renumber.
+  /// 提交重排序并触发重新编号
   void commitReorderAndRenumber() {
     reorderCoordinator.commitReorderAndRenumber();
   }
 
-  // Handles drag end for reorder gesture.
+  /// 处理重排序手势的拖拽结束
   void handleReorderDragEnd({required bool wasAccepted}) {
     reorderCoordinator.handleReorderDragEnd(wasAccepted: wasAccepted);
   }
 
-  // Ends reorder after accepted drop.
+  /// 接受拖放后结束重排序
   void endReorderAfterAcceptedDrop() {
     reorderCoordinator.endReorderAfterAcceptedDrop();
   }
