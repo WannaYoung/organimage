@@ -132,7 +132,7 @@ class FileOperationService {
   }
 }
 
-(List<String>, List<String>, List<String>) _movePathsToTrashWindowsSync(
+(List<String>, List<String>, List<String>) _movePathsToTrashWindowsBatchSync(
   List<String> paths,
 ) {
   final succeeded = <String>[];
@@ -157,16 +157,23 @@ class FileOperationService {
       .map((p) => "'${p.replaceAll("'", "''")}'")
       .join(',');
   final itemsArray = '@($quoted)';
-  const options = 0x414;
 
   final command =
-      "try { "
-      "\$shell = New-Object -ComObject Shell.Application; "
-      "\$recycleBin = \$shell.Namespace(0xA); "
-      "\$items = $itemsArray; "
-      "\$recycleBin.MoveHere(\$items, $options); "
-      "exit 0 "
-      "} catch { exit 1 }";
+      'try { '
+      'Add-Type -AssemblyName Microsoft.VisualBasic; '
+      "\$paths = $itemsArray; "
+      'foreach (\$p in \$paths) { '
+      'if (Test-Path -LiteralPath \$p) { '
+      '\$item = Get-Item -LiteralPath \$p; '
+      'if (\$item.PSIsContainer) { '
+      '[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(\$p,[Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,[Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin); '
+      '} else { '
+      '[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(\$p,[Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,[Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin); '
+      '} '
+      '} '
+      '} '
+      'exit 0 '
+      '} catch { exit 1 }';
 
   final result = Process.runSync('powershell', [
     '-NoProfile',
@@ -432,7 +439,7 @@ int _getNextFileNumberSync(String folderPath, String folderName) {
   final errors = <String>[];
 
   if (Platform.isWindows) {
-    final (s, f, e) = _movePathsToTrashWindowsSync(filePaths);
+    final (s, f, e) = _movePathsToTrashWindowsBatchSync(filePaths);
     succeeded.addAll(s);
     failed.addAll(f);
     errors.addAll(e);
